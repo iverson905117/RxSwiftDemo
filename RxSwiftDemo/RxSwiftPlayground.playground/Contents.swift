@@ -4,8 +4,9 @@ import RxCocoa
 
 let disposeBag = DisposeBag()
 
-
+// ==================================
 // Observable 可監聽序列
+// ==================================
 // Event: onNext, onError, onCompleted
 
 _ = Observable<String>.of("Observable")
@@ -20,6 +21,18 @@ let observable = Observable<Int>.create({ observer -> Disposable in
     observer.onCompleted()
     return Disposables.create()
 })
+
+let button = UIButton()
+let tap: Observable<Void> = button.rx.tap.asObservable()
+tap
+    .subscribe(onNext: { tap in
+        print("tap")
+    }, onError: { error in
+        print("error")
+    }, onCompleted: {
+        print("compolete")
+    }).disposed(by: disposeBag)
+
 // 衍伸用法
 observable
     .observeOn(MainScheduler.instance) // 確保在主線程
@@ -29,40 +42,40 @@ _ = observable.asMaybe()
 _ = observable.asDriver(onErrorJustReturn: 1)
 _ = observable.asSignal(onErrorJustReturn: 1)
 
-let button = UIButton()
-let d: Observable<Void> = button.rx.tap.asObservable()
-d.subscribe(onNext: { tap in
-    print("tap")
-}, onError: { error in
-    print("error")
-}, onCompleted: {
-    print("compolete")
-}).disposed(by: disposeBag)
-
 
 
 // Single
 // Event: onSuccess || onError
+// 不會共享附加作用
 
 _ = Single.just("Single")
 
 func getSingle() -> Single<Bool> {
     return Single<Bool>.create { single in
         single(.success(true))
+        // or
+//        single(.error(<#T##Error#>))
         return Disposables.create()
     }
 }
-let single: Single<Bool> = getSingle()
-single.subscribe(onSuccess: { success in
-    // success
-}, onError: { error in
-    // error
-}).disposed(by: disposeBag)
+let single = getSingle()
+single
+    .subscribe(onSuccess: { success in
+        // success
+    }, onError: { error in
+        // error
+    }).disposed(by: disposeBag)
 
+_ = single.asObservable()
+_ = single.asDriver(onErrorJustReturn: false)
+_ = single.asMaybe()
+_ = single.asCompletable()
+_ = single.asSignal(onErrorJustReturn: false)
 
 
 // Completable
 // Event: onComplete || onError
+// 不會共享附加作用
 
 func catchLocally() -> Completable {
     let success = true
@@ -75,7 +88,8 @@ func catchLocally() -> Completable {
         return Disposables.create()
     }
 }
-catchLocally()
+let completable = catchLocally()
+completable
     .subscribe(onCompleted: {
         // completed
     }, onError: { error in
@@ -84,8 +98,10 @@ catchLocally()
     .disposed(by: disposeBag)
 
 
+
 // Maybe
 // Event: onSuccess || onCompleted || onError
+// 不會共享附加作用
 
 _ = Maybe.just("Maybe")
 
@@ -111,16 +127,18 @@ generateString()
     .disposed(by: disposeBag)
 
 
-
 // Driver 它主要是為了簡化UI層的代碼
 // 不會產生 error 事件
 // 一定在MainScheduler監聽（主線程監聽）
+// 共享附加作用
 // https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/rxswift_core/observable/driver.html
+// Driver 會對新觀察者回放（重新發送）上一個元素 https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/rxswift_core/observable/signal.html
 
 _ = Driver.of("Driver")
 let driver = Driver.just("Driver")
+
 let label = UILabel()
-driver.drive(label.rx.text) // Driver 版本的 bindTo
+driver.drive(label.rx.text) // 主程序綁定 UI
 //print(label.text!)
 
 let textField = UITextField()
@@ -134,3 +152,31 @@ textField.text = "111"
 textField.text = "222"
 result.drive(label.rx.text).disposed(by: disposeBag)
 print("Label: \(label.text!)")
+
+
+
+// Signal
+// Signal和Driver相似，唯一的區別是，Driver 會對新觀察者回放（重新發送）上一個元素，而Signal 不會對新觀察者回放上一個元素。
+// 不會產生 error 事件
+// 一定在MainScheduler監聽（主線程監聽）
+// 共享附加作用
+// https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/rxswift_core/observable/signal.html
+let event: Signal<Void> = button.rx.tap.asSignal()
+let observer: () -> Void = { print("彈出提示框1") }
+event.emit(onNext: observer)
+// ... 假设以下代码是在用户点击 button 后运行
+let newObserver: () -> Void = { print("彈出提示框2") }
+event.emit(onNext: newObserver) // 不會回放給新觀察者
+
+
+
+// ControlEvent
+// ControlEvent專門用於描述UI控件所產生的事件，它具有以下特徵：
+// 不會產生error事件
+// 一定在MainScheduler訂閱（主線程訂閱）
+// 一定在MainScheduler監聽（主線程監聽）
+// 共享附加作用
+
+
+// ==================================
+
