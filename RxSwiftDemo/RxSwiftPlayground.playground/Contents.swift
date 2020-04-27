@@ -9,7 +9,7 @@ let disposeBag = DisposeBag()
 // ==================================
 
 /*
- Event: onNext, onError, onCompleted
+ * Event: onNext, onError, onCompleted
  */
 
 _ = Observable<String>.of("Observable")
@@ -229,7 +229,7 @@ event.emit(onNext: newObserver) // 不會回放給新觀察者
 // -----------------------
 
 /*
- 可以使用描敘任意一種觀察者
+ * 可以使用描敘任意一種觀察者
  */
 
 let anyObserver: AnyObserver<String> = AnyObserver { (event) in
@@ -278,7 +278,7 @@ nameValid
 // ============================================
 
 /*
- 可作為可監聽序列
+ * 可作為可監聽序列
  */
 
 let textObserverble = textField.rx.text.orEmpty
@@ -289,7 +289,7 @@ textObserverble // skip(1) 可忽略第一次訂閱
     .disposed(by: disposeBag)
 
 /*
- 也可作為觀察者
+ * 也可作為觀察者
  */
 
 let textObserver = textField.rx.text.orEmpty
@@ -307,8 +307,8 @@ print("🐼\(String(describing: textField.text))")
 // https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/rxswift_core/observable_and_observer/async_subject.html
 
 /*
- AsyncSubject將在源Observable產生完成事件後，發出最後一個元素（僅只有最後一個元素），
- 如果源Observable沒有發出任何元素，只有一個完成事件。那AsyncSubject也只有一個完成事件。
+ * AsyncSubject將在源Observable產生完成事件後，發出最後一個元素（僅只有最後一個元素），
+ * 如果源Observable沒有發出任何元素，只有一個完成事件。那AsyncSubject也只有一個完成事件。
  */
 
 // --- 1 --- 2 --- 3 --- | --->
@@ -316,7 +316,7 @@ print("🐼\(String(describing: textField.text))")
 //              ↑ ------ 3 --->
 
 /*
- 它源於最初的觀察者發出最終元素。如果源Observable因為產生了一個錯誤事件而中止，AsyncSubject就不會發出任何元素，而是將這個錯誤事件發送出來。
+ * 它源於最初的觀察者發出最終元素。如果源Observable因為產生了一個錯誤事件而中止，AsyncSubject就不會發出任何元素，而是將這個錯誤事件發送出來。
  */
 
 // --- 1 --- 2 --- 3 --- X --->
@@ -342,8 +342,8 @@ asyncSubject.onCompleted()
 // https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/rxswift_core/observable_and_observer/publish_subject.html
 
 /*
-PublishSubject將對觀察者發送訂閱後產生的元素，而在訂閱前發出的元素將不會發送給觀察者。如果您希望觀察者接收到所有的元素，
-您可以通過使用Observable的create方法來創建Observable， 或者使用ReplaySubject。
+ * PublishSubject將對觀察者發送訂閱後產生的元素，而在訂閱前發出的元素將不會發送給觀察者。如果您希望觀察者接收到所有的元素，
+ * 您可以通過使用Observable的create方法來創建Observable， 或者使用ReplaySubject。
  */
 
 // --- 1 --- 2 --- 3 --- | --->
@@ -351,7 +351,7 @@ PublishSubject將對觀察者發送訂閱後產生的元素，而在訂閱前發
 //              ↑  3 --- | --->
 
 /*
- 如果源Observable因為產生了一個錯誤事件而中止，PublishSubject就不會發出任何元素，而是將這個錯誤事件發送出來
+ * 如果源Observable因為產生了一個錯誤事件而中止，PublishSubject就不會發出任何元素，而是將這個錯誤事件發送出來
  */
 
 // --- 1 --- 2 --- X --->
@@ -380,8 +380,8 @@ publishSubject.onNext("🅱️")
 // ---------------------
 
 /*
- - PublishRelay 就是 PublishSubject 去掉终止事件 onError 或 onCompleted。
- - https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/recipes/rxrelay.html
+ * PublishRelay 就是 PublishSubject 去掉终止事件 onError 或 onCompleted。
+ * https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/recipes/rxrelay.html
  */
 
 let publishRelay = PublishRelay<String>()
@@ -398,10 +398,10 @@ publishRelay.accept("🐱")
 // -----------------------
 
 /*
- ReplaySubject將對觀察者發送全部的元素，無論觀察者是何時進行訂閱的。
- 這裡存在多個版本的ReplaySubject，有的只會將最新的n個元素發送給觀察者，有的只會限制時間段內最新的元素發送給觀察者。
- 如果把ReplaySubject當作觀察者來使用，注意不要在多個線程調用onNext，onError或onCompleted。這樣會導致無序調用，將導致意想不到的結果。
- https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/rxswift_core/observable_and_observer/replay_subject.html
+ * ReplaySubject將對觀察者發送全部的元素，無論觀察者是何時進行訂閱的。
+ * 這裡存在多個版本的ReplaySubject，有的只會將最新的n個元素發送給觀察者，有的只會限制時間段內最新的元素發送給觀察者。
+ * 如果把ReplaySubject當作觀察者來使用，注意不要在多個線程調用onNext，onError或onCompleted。這樣會導致無序調用，將導致意想不到的結果。
+ * https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/rxswift_core/observable_and_observer/replay_subject.html
  */
 
 // --- 1 --- 2 --- 3 --- | --->
@@ -432,7 +432,7 @@ replaySubject.onNext("🅱️")
 
 
 /*
- 當觀察者對BehaviorSubject進行訂閱時，它重新合併源Observable中最新的元素發送出來（如果不存在最新的元素，就發出替換元素）。然後將隨之產生的元素發送出來。
+ * 當觀察者對BehaviorSubject進行訂閱時，它重新合併源Observable中最新的元素發送出來（如果不存在最新的元素，就發出替換元素）。然後將隨之產生的元素發送出來。
  */
 
 // Default = 9
@@ -441,7 +441,7 @@ replaySubject.onNext("🅱️")
 //             ↑ 2 3 --- | --->
 
 /*
- 如果源Observable因為產生了一個錯誤事件而中止，BehaviorSubject就不會發出任何元素，而是將這個錯誤事件發送出來。
+ * 如果源Observable因為產生了一個錯誤事件而中止，BehaviorSubject就不會發出任何元素，而是將這個錯誤事件發送出來。
  */
 
 // Default = 9
@@ -478,8 +478,8 @@ behaviorSubject.onNext("🍊")
 // ---------------------
 
 /*
- - BehaviorRelay 就是 BehaviorSubject 去掉终止事件 onError 或 onCompleted。
- - https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/recipes/rxrelay.html
+ * BehaviorRelay 就是 BehaviorSubject 去掉终止事件 onError 或 onCompleted。
+ * https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/recipes/rxrelay.html
  */
 
 let behaviorRelay = BehaviorRelay<String>(value: "🥎")
