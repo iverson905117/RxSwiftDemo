@@ -691,6 +691,8 @@ let errorObservable = Observable<Int>.create { observer in
     return Disposables.create()
 }
 
+
+
 // --------------------
 //        retry
 // --------------------
@@ -732,6 +734,12 @@ let errorObservable = Observable<Int>.create { observer in
 //        print("errorObservable.retryWhen catch error")
 //    })
 //    .disposed(by: disposeBag)
+
+
+
+// --------------------------
+//     retry + retryWhen
+// --------------------------
 
 /*
  * 序列發生錯誤時，經過一段時間再重試，且超過最大次數就不再重試並拋出錯誤
