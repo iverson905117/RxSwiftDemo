@@ -312,8 +312,8 @@ print("🐼\(String(describing: textField.text))")
  */
 
 // --- 1 --- 2 --- 3 --- | --->
-//  ↑ ------------------ 3 --->
-//              ↑ ------ 3 --->
+//  ↑ ------------------ 3 -|->
+//              ↑ ------ 3 -|->
 
 /*
  * 它源於最初的觀察者發出最終元素。如果源Observable因為產生了一個錯誤事件而中止，AsyncSubject就不會發出任何元素，而是將這個錯誤事件發送出來。
@@ -505,3 +505,90 @@ behaviorRelay.accept("🐱")
  - 共享附加作用
  */
 
+
+
+
+// ==========================
+//     Operator - 操作符
+// ==========================
+
+/*
+ * 操作符可以幫助大家創建新的序列，或者變化組合原有的序列，從而生成一個新的序列。
+ */
+
+
+
+// -------------------------
+//        filter
+// -------------------------
+
+/*
+ * 僅僅發出 Observable 中通過判定的元素
+ * filter 操作符將通過你提供的判定方法過濾一個 Observable
+ * https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/decision_tree/filter.html
+ */
+
+// - 2 - 30 - 22 - 5 - 60 - 1 ----- | --->
+// filter ( x => x > 10)
+// ----- 30 - 22 ----- 60 ----------| --->
+
+Observable.of(2, 30, 22, 5, 60, 1)
+    .filter { $0 > 10 }
+    .subscribe(onNext: { print($0) })
+    .disposed(by: disposeBag)
+
+
+
+// -------------------------
+//           map
+// -------------------------
+
+/*
+ * 通過一個轉換函數，將 Observable 的每個元素轉換一遍
+ * map 操作符將源 Observable 的每個元素應用你提供的轉換方法，然後返回含有轉換結果的 Observable。
+ * 可傳任意型別的東西
+ * 你可以用 map 創建一個新的序列。這個序列將原有的 JSON 轉換成 Model 。這種轉換實際上就是解析 JSON 。
+ * https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/decision_tree/map.html
+ */
+
+// - 1 - 2 - 3 ----- | --->
+// map ( x => "x" )
+// -"1"-"2"-"3"----- | --->
+
+Observable.of(1, 2, 3)
+    .map { "int conver to string: \($0)" }
+    .subscribe(onNext: { print($0) })
+    .disposed(by: disposeBag)
+
+
+
+
+// -------------------------
+//           zip
+// -------------------------
+
+/*
+ * 通過一個函數將多個 Observables 的元素組合起來，然後將每一個組合的結果發出來
+ * 最多不超過 8 個
+ */
+
+let first = PublishSubject<String>()
+let second = PublishSubject<String>()
+
+// 合成
+Observable.zip(first, second, resultSelector: { $0 + $1 })
+    .subscribe(onNext: { print("zip1 Event: \($0)") })
+    .disposed(by: disposeBag)
+// 1A
+// 2B
+
+// 不合成
+Observable.zip(first, second)
+    .subscribe(onNext: { print("zip2 Event: \($0), \($1)") })
+    .disposed(by: disposeBag)
+// 1, A
+// 2, B
+
+first.onNext("1")  // second 無第一個元素，不會觸發觀察者
+second.onNext("A") // first, second 皆有第一個元素，會觸發觀察者
+first.onNext("3")  // second 無第二個元素，不會觸發觀察者
