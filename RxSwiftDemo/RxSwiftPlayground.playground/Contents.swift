@@ -4,6 +4,16 @@ import RxCocoa
 
 let disposeBag = DisposeBag()
 
+let label = UILabel()
+let button = UIButton()
+var errorTestFlag = true
+var errorTimes = 0
+
+enum CatchError: Error {
+    case firstError
+    case tooMany
+}
+
 // ==================================
 //       Observable 可監聽序列
 // ==================================
@@ -25,7 +35,6 @@ let observable = Observable<Int>.create({ observer -> Disposable in
     return Disposables.create()
 })
 
-let button = UIButton()
 let tap: Observable<Void> = button.rx.tap.asObservable()
 tap
     .subscribe(onNext: { tap in
@@ -53,7 +62,7 @@ _ = observable.asSignal(onErrorJustReturn: 1)
 
 /*
  - Event: onSuccess || onError
- - 不會共享附加作用
+ - Cold Observable
  - 適合用於 Network
  */
 
@@ -89,7 +98,7 @@ _ = single.asSignal(onErrorJustReturn: false)
 
 /*
  - Event: onComplete || onError
- - 不會共享附加作用
+ - Cold Observable
  */
 
 func catchLocally() -> Completable {
@@ -120,7 +129,7 @@ completable
 
 /*
  - Event: onSuccess || onCompleted || onError
- - 不會共享附加作用
+ - Cold Observable
  */
 
 _ = Maybe.just("Maybe")
@@ -155,7 +164,7 @@ generateString()
 /*
  - 不會產生 error 事件
  - 一定在MainScheduler監聽（主線程監聽）
- - 共享附加作用
+ - Hot Observable
  - 它主要是為了簡化UI層的代碼
  - https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/rxswift_core/observable/driver.html
  - Driver 會對新觀察者回放（重新發送）上一個元素
@@ -165,20 +174,21 @@ generateString()
 _ = Driver.of("Driver")
 let driver = Driver.just("Driver")
 
-let label = UILabel()
 driver.drive(label.rx.text) // 主程序綁定 UI
 //print(label.text!)
 
 let textField = UITextField()
 let result: Driver<String> = textField.rx.text.orEmpty.asDriver()
-    .throttle(RxTimeInterval.milliseconds(300))
-    .flatMapLatest { query -> Driver<String> in
-        print(query)
-        return .just(query)
-    }
+                                .throttle(RxTimeInterval.milliseconds(300))
+                                .flatMapLatest { query -> Driver<String> in
+                                    print(query)
+                                    return .just(query)
+                                }
 textField.text = "111"
 textField.text = "222"
-result.drive(label.rx.text).disposed(by: disposeBag)
+result
+    .drive(label.rx.text)
+    .disposed(by: disposeBag)
 print("Label: \(label.text!)")
 
 
@@ -191,7 +201,7 @@ print("Label: \(label.text!)")
  - Signal 和 Driver 相似，唯一的區別是，Driver 會對新觀察者回放（重新發送）上一個元素，而Signal 不會對新觀察者回放上一個元素。
  - 不會產生 error 事件
  - 一定在MainScheduler監聽（主線程監聽）
- - 共享附加作用
+ - Hot Observable
  */
 
 // https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/rxswift_core/observable/signal.html
@@ -213,9 +223,24 @@ event.emit(onNext: newObserver) // 不會回放給新觀察者
  - 不會產生error事件
  - 一定在MainScheduler訂閱（主線程訂閱）
  - 一定在MainScheduler監聽（主線程監聽）
- - 共享附加作用
+ - Hot Observable
  */
 
+
+
+// ==================================
+//     Hot and Cold Observables
+// ==================================
+
+/*
+ -  Hot Observables: Driver, Signal, ControlEvent ...
+ - Cold Observables: Single, Completable, Maybe ...
+ * https://github.com/ReactiveX/RxSwift/blob/master/Documentation/HotAndColdObservables.md
+ * 如果一個函數除了計算返回值以外，還有其他可觀測作用，我們就稱這個函數擁有附加作用:
+ * https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/recipes/side_effects.html
+ * https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/recipes/share_side_effects.html
+ * https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/decision_tree/shareReplay.html
+ */
 
 
 
@@ -507,13 +532,24 @@ behaviorRelay.accept("🐱")
 
 
 
-
 // ==========================
 //     Operator - 操作符
 // ==========================
 
 /*
  * 操作符可以幫助大家創建新的序列，或者變化組合原有的序列，從而生成一個新的序列。
+ */
+
+// =============================
+//   Disposable - 可被清除的資源
+// =============================
+
+/*
+ - Disposable
+ - DisposeBag (推薦)當 清除包 被釋放的時候，清除包 內部所有 可被清除的資源（Disposable） 都將被清除。
+ - takeUntil
+ * https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/rxswift_core/disposable.html
+ * 訂閱將被取消，並且內部資源都會被釋放
  */
 
 
@@ -592,3 +628,133 @@ Observable.zip(first, second)
 first.onNext("1")  // second 無第一個元素，不會觸發觀察者
 second.onNext("A") // first, second 皆有第一個元素，會觸發觀察者
 first.onNext("3")  // second 無第二個元素，不會觸發觀察者
+
+
+
+// ===========================
+//    Schedulers - 調度器
+// ===========================
+
+/*
+ * Schedulers 是 Rx 實現多線程的核心模塊，它主要用於控制任務在哪個線程或隊列運行。
+ 
+ - MainScheduler:
+   代表主線程。如果你需要執行一些和 UI 相關的任務，就需要切換到該 Scheduler 運行。
+ 
+ - SerialDispatchQueueScheduler:
+   抽象了串行 DispatchQueue。如果你需要执行一些串行任务，可以切换到这个 Scheduler 运行。
+ 
+ - ConcurrentDispatchQueueScheduler:
+   抽象了並行 DispatchQueue。如果你需要執行一些並發任務，可以切換到這個 Scheduler 運行。
+ 
+ - OperationQueueScheduler:
+   抽象了 NSOperationQueue。它具備 NSOperationQueue 的一些特點，例如，你可以通過設置 maxConcurrentOperationCount，來控制同時執行並發任務的最大數量。
+ */
+
+// GCD
+DispatchQueue.global(qos: .userInitiated).async {
+    // 子線程 get image
+    _ = try? UIImage(data: Data(contentsOf: URL(string: "https://")!))
+    DispatchQueue.main.async {
+        // 主線程 update UI
+    }
+}
+
+// subscribeOn: 決定數據序列的構建函數在哪個 Scheduler 上運行。
+// observeOn: 在哪個 Scheduler 監聽這個數據序列
+
+// RxSwift 實現
+behaviorRelay
+    .subscribeOn(ConcurrentDispatchQueueScheduler.init(qos: .userInitiated))
+    .observeOn(MainScheduler.instance)
+    .subscribe(onNext: { print("Schedulers on main queue: Event: \($0)") })
+    .disposed(by: disposeBag)
+behaviorRelay.accept("123")
+
+
+// =============================
+//   Error Handling - 錯誤處理
+// =============================
+// https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/rxswift_core/error_handling.html
+
+/*
+ * 可以讓序列在發生錯誤後重試，達到重試次數仍錯誤，才會拋出錯誤
+ */
+
+let errorObservable = Observable<Int>.create { observer in
+    if errorTimes < 100 {
+        errorTimes += 1
+        print("errorObservable errorTimes: \(errorTimes)")
+        observer.onError(CatchError.firstError)
+    }
+    observer.onNext(1)
+    return Disposables.create()
+}
+
+// --------------------
+//        retry
+// --------------------
+
+/*
+ * 設定最大重試次數，達到重試最大次數仍錯誤，才會拋出錯誤
+ */
+
+//errorTestFlag = true
+//errorTimes = 0
+//errorObservable
+//    .retry(3) // 遇到 error 立即重試 次數 3 次
+//    .subscribe(onNext: { value in
+//        print("errorObservable.retry: Event: \(value)")
+//    }, onError: { error in
+//        print("errorObservable.retry catch error") // 重試 3 次後仍錯誤，就將錯誤拋出
+//    })
+//    .disposed(by: disposeBag)
+
+
+
+// --------------------
+//      retryWhen
+// --------------------
+
+/*
+ * 序列發生錯誤時，經過一段時間再重試
+ */
+
+//errorTestFlag = true
+//errorTimes = 0
+//errorObservable
+//    .retryWhen { (rxError: Observable<Error>) -> Observable<Int> in
+//        return Observable<Int>.timer(.microseconds(500), scheduler: MainScheduler.instance)
+//    }
+//    .subscribe(onNext: { value in
+//        print("errorObservable.retryWhen: Event: \(value)")
+//    }, onError: { error in
+//        print("errorObservable.retryWhen catch error")
+//    })
+//    .disposed(by: disposeBag)
+
+/*
+ * 序列發生錯誤時，經過一段時間再重試，且超過最大次數就不再重試並拋出錯誤
+ */
+
+let maxRetryCount = 4
+
+errorTestFlag = true
+errorTimes = 0
+errorObservable
+    .observeOn(MainScheduler.asyncInstance)
+    .retryWhen { (rxError: Observable<Error>) -> Observable<Int> in
+        return rxError.enumerated().flatMap { (index, error) -> Observable<Int> in
+            guard index < maxRetryCount else { // 超過最大次數就拋出錯誤
+                return Observable.error(CatchError.tooMany)
+//                throw CatchError.tooMany
+            }
+            return Observable<Int>.timer(.seconds(2), scheduler: MainScheduler.instance)
+        }
+    }
+    .subscribe(onNext: { value in
+        print("errorObservable.retryWhen with max retry: Event: \(value)")
+    }, onError: { error in
+        print("errorObservable.retryWhen with max retry catch error")
+    })
+    .disposed(by: disposeBag)
