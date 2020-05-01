@@ -546,145 +546,6 @@ behaviorRelay.accept("🐱")
 
 
 
-// ===========================
-//    Schedulers - 調度器
-// ===========================
-
-/*
- * Schedulers 是 Rx 實現多線程的核心模塊，它主要用於控制任務在哪個線程或隊列運行。
- 
- - MainScheduler:
-   代表主線程。如果你需要執行一些和 UI 相關的任務，就需要切換到該 Scheduler 運行。
- 
- - SerialDispatchQueueScheduler:
-   抽象了串行 DispatchQueue。如果你需要执行一些串行任务，可以切换到这个 Scheduler 运行。
- 
- - ConcurrentDispatchQueueScheduler:
-   抽象了並行 DispatchQueue。如果你需要執行一些並發任務，可以切換到這個 Scheduler 運行。
- 
- - OperationQueueScheduler:
-   抽象了 NSOperationQueue。它具備 NSOperationQueue 的一些特點，例如，你可以通過設置 maxConcurrentOperationCount，來控制同時執行並發任務的最大數量。
- */
-
-// GCD
-DispatchQueue.global(qos: .userInitiated).async {
-    // 子線程 get image
-    _ = try? UIImage(data: Data(contentsOf: URL(string: "https://")!))
-    DispatchQueue.main.async {
-        // 主線程 update UI
-    }
-}
-
-// subscribeOn: 決定數據序列的構建函數在哪個 Scheduler 上運行。
-// observeOn: 在哪個 Scheduler 監聽這個數據序列
-
-// RxSwift 實現
-behaviorRelay
-    .subscribeOn(ConcurrentDispatchQueueScheduler.init(qos: .userInitiated))
-    .observeOn(MainScheduler.instance)
-    .subscribe(onNext: { print("Schedulers on main queue: Event: \($0)") })
-    .disposed(by: disposeBag)
-behaviorRelay.accept("123")
-
-
-// =============================
-//   Error Handling - 錯誤處理
-// =============================
-// https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/rxswift_core/error_handling.html
-
-/*
- * 可以讓序列在發生錯誤後重試，達到重試次數仍錯誤，才會拋出錯誤
- */
-
-let errorObservable = Observable<Int>.create { observer in
-    if errorTimes < 100 {
-        errorTimes += 1
-        print("errorObservable errorTimes: \(errorTimes)")
-        observer.onError(CatchError.test)
-    }
-    observer.onNext(1)
-    return Disposables.create()
-}
-
-
-
-// --------------------
-//        retry
-// --------------------
-
-/*
- * 設定最大重試次數，達到重試最大次數仍錯誤，才會拋出錯誤
- */
-
-//errorTestFlag = true
-//errorTimes = 0
-//errorObservable
-//    .retry(3) // 遇到 error 立即重試 次數 3 次
-//    .subscribe(onNext: { value in
-//        print("errorObservable.retry: Event: \(value)")
-//    }, onError: { error in
-//        print("errorObservable.retry catch error") // 重試 3 次後仍錯誤，就將錯誤拋出
-//    })
-//    .disposed(by: disposeBag)
-
-
-
-// --------------------
-//      retryWhen
-// --------------------
-
-/*
- * 序列發生錯誤時，經過一段時間再重試
- */
-
-//errorTestFlag = true
-//errorTimes = 0
-//errorObservable
-//    .retryWhen { (rxError: Observable<Error>) -> Observable<Int> in
-//        return Observable<Int>.timer(.microseconds(500), scheduler: MainScheduler.instance)
-//    }
-//    .subscribe(onNext: { value in
-//        print("errorObservable.retryWhen: Event: \(value)")
-//    }, onError: { error in
-//        print("errorObservable.retryWhen catch error")
-//    })
-//    .disposed(by: disposeBag)
-
-
-
-// --------------------------
-//     retry + retryWhen
-// --------------------------
-
-/*
- * 序列發生錯誤時，經過一段時間再重試，且超過最大次數就不再重試並拋出錯誤
- */
-
-let maxRetryCount = 4
-
-errorTestFlag = true
-errorTimes = 0
-errorObservable
-    .observeOn(MainScheduler.asyncInstance)
-    .retryWhen { (rxError: Observable<Error>) -> Observable<Int> in
-        return rxError.enumerated().flatMap { (index, error) -> Observable<Int> in
-            guard index < maxRetryCount else { // 超過最大次數就拋出錯誤
-                return Observable.error(CatchError.tooMany)
-//                throw CatchError.tooMany
-            }
-            return Observable<Int>.timer(.seconds(2), scheduler: MainScheduler.instance)
-        }
-    }
-    .subscribe(onNext: { value in
-        print("errorObservable.retryWhen with max retry: Event: \(value)")
-    }, onError: { error in
-        print("errorObservable.retryWhen with max retry catch error")
-    })
-    .disposed(by: disposeBag)
-
-
-
-
 // ==========================
 //     Operator - 操作符
 // ==========================
@@ -737,6 +598,44 @@ Observable.of(1, 2, 3)
 
 
 
+// -------------------------
+//         flatMap
+// -------------------------
+
+/*
+ * 將 Observable 的元素轉換成其他的 Observable，然後將這些 Observables 合併
+ * flatMap 操作符將源 Observable 的每一個元素應用一個轉換方法，將他們轉換成 Observables。然後將這些 Observables 的元素合併之後再發送出來。
+ * https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/decision_tree/flatMap.html
+ */
+
+// 這個操作符是非常有用的，例如，當 Observable 的元素本身擁有其他的 Observable 時，你可以將所有子 Observables 的元素發送出來。
+
+let flatMapFirst = BehaviorSubject(value: "first.👦🏻")
+let flatMapSecond = BehaviorSubject(value: "second.🅰️")
+let flatMapThird = BehaviorSubject(value: "third.⚾️")
+let flatMapObservable = BehaviorRelay(value: flatMapFirst)
+
+// use flatMap
+flatMapObservable
+    .flatMap { $0 }
+    .subscribe(onNext: { print("✅flatMap Event: \($0)") })
+    .disposed(by: disposeBag)
+
+// not use flatMap
+flatMapObservable
+    .subscribe(onNext: { print("🚫flatMap Event: \($0)") })
+    .disposed(by: disposeBag)
+
+flatMapFirst.onNext("first.🐱")
+flatMapObservable.accept(flatMapSecond)
+flatMapSecond.onNext("second.🅱️")
+flatMapFirst.onNext("first.🐶")
+flatMapObservable.accept(flatMapThird)
+flatMapThird.onNext("third.🏈")
+flatMapSecond.onNext("second.🅰️🅱️")
+flatMapFirst.onNext("first.🐹")
+
+
 
 // -------------------------
 //           zip
@@ -745,28 +644,44 @@ Observable.of(1, 2, 3)
 /*
  * 通過一個函數將多個 Observables 的元素組合起來，然後將每一個組合的結果發出來
  * 最多不超過 8 個
+ * https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/decision_tree/zip.html
  */
 
-let first = PublishSubject<String>()
-let second = PublishSubject<String>()
+let zipFirst = PublishSubject<String>()
+let zipSecond = PublishSubject<String>()
+let zipError = PublishSubject<String>()
 
 // 合成
-Observable.zip(first, second, resultSelector: { $0 + $1 })
+Observable.zip(zipFirst, zipSecond, resultSelector: { $0 + $1 })
     .subscribe(onNext: { print("zip1 Event: \($0)") })
     .disposed(by: disposeBag)
 // 1A
-// 2B
+
+// 合成 Error
+Observable.zip(zipFirst, zipError, resultSelector: { $0 + $1 })
+    .subscribe(onNext: { print("zip2 Event: \($0)") },
+               onError: { error in print("zip2 catch error") })
+    .disposed(by: disposeBag)
+// 1B
+// catch error
 
 // 不合成
-Observable.zip(first, second)
-    .subscribe(onNext: { print("zip2 Event: \($0), \($1)") })
+Observable.zip(zipFirst, zipSecond)
+    .subscribe(onNext: { print("zip3 Event: \($0), \($1)") })
     .disposed(by: disposeBag)
 // 1, A
-// 2, B
 
-first.onNext("1")  // second 無第一個元素，不會觸發觀察者
-second.onNext("A") // first, second 皆有第一個元素，會觸發觀察者
-first.onNext("3")  // second 無第二個元素，不會觸發觀察者
+
+zipFirst.onNext("1")
+zipFirst.onNext("2")
+zipFirst.onNext("3") // 不會觸發觀察者
+
+zipSecond.onNext("A")
+zipSecond.onNext("A")
+
+zipError.onNext("B")
+zipError.onError(CatchError.test) // 只要 catch error 觀察者必定觸發 onError
+zipError.onNext("B")  // 已觸發 onError 觀察者被終止了
 
 
 
@@ -776,6 +691,7 @@ first.onNext("3")  // second 無第二個元素，不會觸發觀察者
 
 /*
  * 在多個源 Observables 中， 取第一個發出元素或產生事件的 Observable，然後只發出它的元素
+ * https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/decision_tree/amb.html
  */
 
 let ambObservalble1 = Observable<String>.create { observer -> Disposable in
@@ -801,3 +717,141 @@ Observable<String>.amb([ambObservalble1, ambObservalble2, ambObservalble3])
  當你傳入多個 Observables 到 amb 操作符時，它將取其中一個 Observable：第一個產生事件的那個 Observable，可以是一個 next，error 或者 completed 事件。 amb 將忽略掉其他的 Observables。
  */
 
+
+
+// ===========================
+//    Schedulers - 調度器
+// ===========================
+
+/*
+ * Schedulers 是 Rx 實現多線程的核心模塊，它主要用於控制任務在哪個線程或隊列運行。
+ 
+ - MainScheduler:
+   代表主線程。如果你需要執行一些和 UI 相關的任務，就需要切換到該 Scheduler 運行。
+ 
+ - SerialDispatchQueueScheduler:
+   抽象了串行 DispatchQueue。如果你需要执行一些串行任务，可以切换到这个 Scheduler 运行。
+ 
+ - ConcurrentDispatchQueueScheduler:
+   抽象了並行 DispatchQueue。如果你需要執行一些並發任務，可以切換到這個 Scheduler 運行。
+ 
+ - OperationQueueScheduler:
+   抽象了 NSOperationQueue。它具備 NSOperationQueue 的一些特點，例如，你可以通過設置 maxConcurrentOperationCount，來控制同時執行並發任務的最大數量。
+ */
+
+// GCD
+DispatchQueue.global(qos: .userInitiated).async {
+    // 子線程 get image
+    _ = try? UIImage(data: Data(contentsOf: URL(string: "https://")!))
+    DispatchQueue.main.async {
+        // 主線程 update UI
+    }
+}
+
+// subscribeOn: 決定數據序列的構建函數在哪個 Scheduler 上運行。
+// observeOn: 在哪個 Scheduler 監聽這個數據序列
+
+// RxSwift 實現
+behaviorRelay
+    .subscribeOn(ConcurrentDispatchQueueScheduler.init(qos: .userInitiated))
+    .observeOn(MainScheduler.instance)
+    .subscribe(onNext: { print("Schedulers on main queue: Event: \($0)") })
+    .disposed(by: disposeBag)
+behaviorRelay.accept("123")
+
+
+
+// =============================
+//   Error Handling - 錯誤處理
+// =============================
+// https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/rxswift_core/error_handling.html
+
+/*
+ * 可以讓序列在發生錯誤後重試，達到重試次數仍錯誤，才會拋出錯誤
+ */
+
+let errorObservable = Observable<Int>.create { observer in
+    if errorTimes < 100 {
+        errorTimes += 1
+        print("errorObservable errorTimes: \(errorTimes)")
+        observer.onError(CatchError.test)
+    }
+    observer.onNext(1)
+    return Disposables.create()
+}
+
+
+
+// --------------------
+//        retry
+// --------------------
+
+/*
+ * 設定最大重試次數，達到重試最大次數仍錯誤，才會拋出錯誤
+ */
+
+errorTestFlag = true
+errorTimes = 0
+errorObservable
+    .retry(3) // 遇到 error 立即重試 次數 3 次
+    .subscribe(onNext: { value in
+        print("errorObservable.retry: Event: \(value)")
+    }, onError: { error in
+        print("errorObservable.retry catch error") // 重試 3 次後仍錯誤，就將錯誤拋出
+    })
+    .disposed(by: disposeBag)
+
+
+
+// --------------------
+//      retryWhen
+// --------------------
+
+/*
+ * 序列發生錯誤時，經過一段時間再重試
+ */
+
+errorTestFlag = true
+errorTimes = 0
+errorObservable
+    .retryWhen { (rxError: Observable<Error>) -> Observable<Int> in
+        return Observable<Int>.timer(.microseconds(500), scheduler: MainScheduler.instance)
+    }
+    .subscribe(onNext: { value in
+        print("errorObservable.retryWhen: Event: \(value)")
+    }, onError: { error in
+        print("errorObservable.retryWhen catch error")
+    })
+    .disposed(by: disposeBag)
+
+
+
+// --------------------------
+//     retry + retryWhen
+// --------------------------
+
+/*
+ * 序列發生錯誤時，經過一段時間再重試，且超過最大次數就不再重試並拋出錯誤
+ */
+
+let maxRetryCount = 4
+
+errorTestFlag = true
+errorTimes = 0
+errorObservable
+    .observeOn(MainScheduler.asyncInstance)
+    .retryWhen { (rxError: Observable<Error>) -> Observable<Int> in
+        return rxError.enumerated().flatMap { (index, error) -> Observable<Int> in
+            guard index < maxRetryCount else { // 超過最大次數就拋出錯誤
+                return Observable.error(CatchError.tooMany)
+//                throw CatchError.tooMany
+            }
+            return Observable<Int>.timer(.seconds(2), scheduler: MainScheduler.instance)
+        }
+    }
+    .subscribe(onNext: { value in
+        print("errorObservable.retryWhen with max retry: Event: \(value)")
+    }, onError: { error in
+        print("errorObservable.retryWhen with max retry catch error")
+    })
+    .disposed(by: disposeBag)
