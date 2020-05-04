@@ -638,6 +638,30 @@ flatMapFirst.onNext("first.🐹")
 
 
 // -------------------------
+//       flatMapLast
+// -------------------------
+
+/*
+ * 將 Observable 的元素轉換成其他的 Observable，然後取這些 Observables 中最新的一個
+ * flatMapLatest 操作符將源 Observable 的每一個元素應用一個轉換方法，將他們轉換成 Observables。一旦轉換出一個新的 Observable，就只發出它的元素，舊的 Observables 的元素將被忽略掉。
+ */
+
+let flatMapLastFirst = BehaviorSubject(value: "first.👦🏻")
+let flatMapLastSectond = BehaviorSubject(value: "seond.🅰️")
+let flatMapLastObservable = BehaviorRelay(value: flatMapLastFirst)
+flatMapLastObservable
+    .flatMapLatest { $0 }
+    .subscribe(onNext: { print("flatMapLast Event: \($0)") })
+    .disposed(by: disposeBag)
+
+flatMapLastFirst.onNext("first.🐱")
+flatMapLastObservable.accept(flatMapLastSectond)
+flatMapSecond.onNext("second.🅱️")
+flatMapLastFirst.onNext("first.🐶")
+
+
+
+// -------------------------
 //           zip
 // -------------------------
 
