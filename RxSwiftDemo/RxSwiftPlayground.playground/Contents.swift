@@ -710,6 +710,38 @@ zipError.onNext("B")  // 已觸發 onError 觀察者被終止了
 
 
 // -------------------------
+//       combineLatest
+// -------------------------
+
+/*
+ * 當多個 Observables 中任何一個發出一個元素，就發出一個元素。這個元素是由這些 Observables 中最新的元素，通過一個函數組合起來的
+ */
+
+let combineLastestFirst = PublishSubject<String>()
+let combineLastestSecond = PublishSubject<String>()
+// 組合
+Observable
+    .combineLatest(combineLastestFirst, combineLastestSecond) { $0 + $1 }
+    .subscribe(onNext: { print("combineLastest1 Event: \($0)") })
+    .disposed(by: disposeBag)
+// 不組合
+Observable
+    .combineLatest(combineLastestFirst, combineLastestSecond)
+    .subscribe(onNext: { print("combineLastest2 Event: \($0), \($1)") })
+    .disposed(by: disposeBag)
+
+combineLastestFirst.onNext("1")
+combineLastestSecond.onNext("A")
+combineLastestFirst.onNext("2")
+combineLastestSecond.onNext("B")
+combineLastestSecond.onNext("C")
+combineLastestSecond.onNext("D")
+combineLastestFirst.onNext("3")
+combineLastestFirst.onNext("4")
+
+
+
+// -------------------------
 //           amb
 // -------------------------
 
@@ -740,6 +772,89 @@ Observable<String>.amb([ambObservalble1, ambObservalble2, ambObservalble3])
 /*
  當你傳入多個 Observables 到 amb 操作符時，它將取其中一個 Observable：第一個產生事件的那個 Observable，可以是一個 next，error 或者 completed 事件。 amb 將忽略掉其他的 Observables。
  */
+
+
+
+// -------------------------
+//          buffer
+// -------------------------
+
+/*
+ * 緩存元素，然後將緩存的元素集合，週期性的發出來
+ * buffer 操作符將緩存 Observable 中發出的新元素，當元素達到某個數量，或者經過了特定的時間，它就會將這個元素集合發送出來。
+ * https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/decision_tree/buffer.html
+ */
+
+var bufferObservable = PublishSubject<String>()
+
+//bufferObservable
+//    .buffer(timeSpan: .seconds(2), count: 3, scheduler: MainScheduler.instance)
+//    .subscribe(onNext: { print("buffer Event: \($0)") })
+//    .disposed(by: disposeBag)
+
+bufferObservable.onNext("1")
+bufferObservable.onNext("2")
+bufferObservable.onNext("3")
+bufferObservable.onNext("A")
+bufferObservable.onNext("B")
+
+
+
+// -------------------------
+//        catchError
+// -------------------------
+
+/*
+ * 從一個錯誤事件中恢復，將錯誤事件替換成一個備選序列
+ * catchError 操作符將會攔截一個 error 事件，將它替換成其他的元素或者一組元素，然後傳遞給觀察者。這樣可以使得 Observable 正常結束，或者根本都不需要結束。
+ */
+
+let errorSequence = PublishSubject<String>()
+let recoverySequence = PublishSubject<String>()
+
+errorSequence
+    .catchError { error -> Observable<String> in
+        print("catch error: \(error)")
+        return recoverySequence
+    }
+.subscribe(onNext: { print("catchError return recovery Event: \($0)") },
+           onError: { print("catchError \($0)")},           // 不會觸發
+           onCompleted: { print("catchError completed") })  // 不會觸發
+    .disposed(by: disposeBag)
+
+errorSequence.onNext("😬")
+errorSequence.onNext("😨")
+errorSequence.onNext("😡")
+errorSequence.onNext("🔴")
+errorSequence.onError(CatchError.test)  // 發生 error
+recoverySequence.onNext("😊")           // 替換成觀察 recoverySequence
+errorSequence.onNext("🥵")              // 將不繼續觀察 errorSequence
+recoverySequence.onNext("😊😊")
+
+
+
+// -------------------------
+//   catchErrorJustReturn
+// -------------------------
+
+/*
+ * catchErrorJustReturn 操作符會將 error 事件替換成其他的一個元素，然後結束該序列。
+ */
+
+let errorJustReturnSequence = PublishSubject<String>()
+
+errorJustReturnSequence
+    .catchErrorJustReturn("catchErrorJustReturn")
+    .subscribe(onNext: { print("catchErrorJustReturn Event: \($0)") },
+               onError: { print("catchErrorJustReturn error: \($0)") },
+               onCompleted: { print("catchErrorJustReturn completed") }) // 接收到 Error 會觸發
+    .disposed(by: disposeBag)
+
+errorJustReturnSequence.onNext("😬")
+errorJustReturnSequence.onNext("😨")
+errorJustReturnSequence.onNext("😡")
+errorJustReturnSequence.onNext("🔴")
+errorJustReturnSequence.onError(CatchError.test)
 
 
 
