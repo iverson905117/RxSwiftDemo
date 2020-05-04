@@ -926,6 +926,57 @@ concatMapSubject1.onNext("1.I am completed") // 已完成不會再被觀察
 
 
 
+// -------------------------
+//          merge
+// -------------------------
+
+/*
+ * 將多個 Observables 合併成一個 (同一條序列內)
+ * https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/decision_tree/merge.html
+ */
+
+// - 20 - 40 - 60 - 80 - 100 -----|--->
+// -------------- 1 -------- 1 ---|--->
+// merge
+// - 20 - 40 - 60 1 89 - 100 1 ---| --->
+
+/*
+ 通過使用 merge 操作符你可以將多個 Observables 合併成一個，當某一個 Observable 發出一個元素時，他就將這個元素發出。
+
+ 如果，某一個 Observable 發出一個 onError 事件，那麼被合併的 Observable 也會將它發出，並且立即終止序列。
+ */
+
+let mergeSubject1 = PublishSubject<String>()
+let mergeSubject2 = PublishSubject<String>()
+
+// 方式一
+Observable.of(mergeSubject1, mergeSubject2)
+    .merge()
+    .subscribe(onNext: { print("merger1 Event: \($0)") },
+               onError: { print("merger1 catch error: \($0)") },
+               onCompleted: { print("merger1 completed") })
+    .disposed(by: disposeBag)
+
+// 方式二
+Observable
+    .merge(mergeSubject1, mergeSubject2)
+    .subscribe(onNext: { print("merger2 Event: \($0)") },
+           onError: { print("merger2 catch error: \($0)") },
+           onCompleted: { print("merger2 completed") })
+    .disposed(by: disposeBag)
+
+mergeSubject1.onNext("🅰️")
+mergeSubject1.onNext("🅱️")
+mergeSubject2.onNext("①")
+mergeSubject2.onNext("②")
+//mergeSubject1.onError(CatchError.test) // 其中一條序列 error 都會觸發 onError
+//mergeSubject1.onCompleted() // 必須所有序列都 completed 才會觸發 onCompleted
+//mergeSubject2.onCompleted()
+mergeSubject1.onNext("🆎")
+mergeSubject2.onNext("③")
+
+
+
 // ===========================
 //    Schedulers - 調度器
 // ===========================
