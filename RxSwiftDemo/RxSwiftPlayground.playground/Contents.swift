@@ -858,6 +858,74 @@ errorJustReturnSequence.onError(CatchError.test)
 
 
 
+// -------------------------
+//          concat
+// -------------------------
+
+/*
+ * 讓兩個或多個 Observables 按順序串連起來
+ * https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/decision_tree/concat.html
+ */
+
+/*
+ concat 操作符將多個 Observables 按順序串聯起來，當前一個 Observable 元素發送完畢後，後一個 Observable 才可以開始發出元素。
+
+ concat 將等待前一個 Observable 產生完成事件後，才對後一個 Observable 進行訂閱。如果後一個是“熱” Observable ，在它前一個 Observable 產生完成事件前，所產生的元素將不會被發送出來。
+ */
+
+let concatSubject1 = BehaviorSubject(value: "1.🍎")
+let concatSubject2 = BehaviorSubject(value: "1.🐶")
+
+let concatRelay = BehaviorRelay(value: concatSubject1)
+
+concatRelay.asObservable()
+    .concat()
+    .subscribe(onNext: { print("concat Event: \($0)") })
+    .disposed(by: disposeBag)
+
+concatSubject1.onNext("1.🍐")
+concatSubject1.onNext("1.🍊")
+concatRelay.accept(concatSubject2)
+concatSubject2.onNext("2.I would be ignored")
+concatSubject2.onNext("2.🐱")
+concatSubject1.onCompleted() //  完成後才會訂閱後一個 Observable
+concatSubject2.onNext("2.🐭")
+concatSubject1.onNext("1.I am completed") // 已完成不會再被觀察
+
+
+
+// -------------------------
+//        concatMap
+// -------------------------
+
+/*
+ * 將 Observable 的元素轉換成其他的 Observable，然後將這些 Observables 串連起來
+ */
+
+let concatMapSubject1 = BehaviorSubject(value: "1.🍎")
+let concatMapSubject2 = BehaviorSubject(value: "1.🐶")
+
+let concatMapRelay = BehaviorRelay(value: concatMapSubject1)
+
+concatMapRelay.asObservable()
+    .concatMap({ subject -> BehaviorSubject<String> in
+//        return BehaviorSubject(value: "123")
+        return subject
+    })
+    .subscribe(onNext: { print("concatMap Event: \($0)") })
+    .disposed(by: disposeBag)
+
+concatMapSubject1.onNext("1.🍐")
+concatMapSubject1.onNext("1.🍊")
+concatMapRelay.accept(concatMapSubject2)
+concatMapSubject2.onNext("2.I would be ignored")
+concatMapSubject2.onNext("2.🐱")
+concatMapSubject1.onCompleted() //  完成後才會訂閱後一個 Observable
+concatMapSubject2.onNext("2.🐭")
+concatMapSubject1.onNext("1.I am completed") // 已完成不會再被觀察
+
+
+
 // ===========================
 //    Schedulers - 調度器
 // ===========================
