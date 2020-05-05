@@ -616,7 +616,7 @@ let flatMapSecond = BehaviorSubject(value: "second.🅰️")
 let flatMapThird = BehaviorSubject(value: "third.⚾️")
 let flatMapObservable = BehaviorRelay(value: flatMapFirst)
 
- use flatMap
+// use flatMap
 flatMapObservable
     .flatMap { $0 }
     .subscribe(onNext: { print("✅flatMap Event: \($0)") })
