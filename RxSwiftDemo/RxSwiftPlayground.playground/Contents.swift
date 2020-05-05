@@ -605,19 +605,26 @@ Observable.of(1, 2, 3)
 /*
  * 將 Observable 的元素轉換成其他的 Observable，然後將這些 Observables 合併
  * flatMap 操作符將源 Observable 的每一個元素應用一個轉換方法，將他們轉換成 Observables。然後將這些 Observables 的元素合併之後再發送出來。
+ * 這個操作符是非常有用的，例如，當 Observable 的元素本身擁有其他的 Observable 時，你可以將所有子 Observables 的元素發送出來。
+ * 必須同型別
  * https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/decision_tree/flatMap.html
  */
 
-// 這個操作符是非常有用的，例如，當 Observable 的元素本身擁有其他的 Observable 時，你可以將所有子 Observables 的元素發送出來。
 
 let flatMapFirst = BehaviorSubject(value: "first.👦🏻")
 let flatMapSecond = BehaviorSubject(value: "second.🅰️")
 let flatMapThird = BehaviorSubject(value: "third.⚾️")
 let flatMapObservable = BehaviorRelay(value: flatMapFirst)
 
-// use flatMap
+ use flatMap
 flatMapObservable
     .flatMap { $0 }
+    .subscribe(onNext: { print("✅flatMap Event: \($0)") })
+    .disposed(by: disposeBag)
+
+flatMapObservable
+    .flatMap { _ in return flatMapSecond }
+    .flatMap { _ in return flatMapThird }
     .subscribe(onNext: { print("✅flatMap Event: \($0)") })
     .disposed(by: disposeBag)
 
@@ -671,6 +678,11 @@ flatMapLastFirst.onNext("first.🐶")
  * https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/decision_tree/zip.html
  */
 
+// 1 --- 2 --------- 3 - 4 ----- 5 ---|--->
+// -- A -- B --- C D -----------------|--->
+// zip
+// 1A -- 2B -------- 3C - 4D ---------|--->
+
 let zipFirst = PublishSubject<String>()
 let zipSecond = PublishSubject<String>()
 let zipError = PublishSubject<String>()
@@ -715,7 +727,14 @@ zipError.onNext("B")  // 已觸發 onError 觀察者被終止了
 
 /*
  * 當多個 Observables 中任何一個發出一個元素，就發出一個元素。這個元素是由這些 Observables 中最新的元素，通過一個函數組合起來的
+ * 元素必須同樣型別
+ * https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/decision_tree/combineLatest.html
  */
+
+// 1 -- 2 ---------- 3 - 4 --- 5 ----|--->
+// -- A -- B --- C D ----------------|--->
+// combineLastest x + y
+// 1A - 2A - 2B - 2C 2D 3D 4D 5D ----|--->
 
 let combineLastestFirst = PublishSubject<String>()
 let combineLastestSecond = PublishSubject<String>()
