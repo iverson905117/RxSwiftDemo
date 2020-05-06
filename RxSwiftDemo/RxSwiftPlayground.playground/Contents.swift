@@ -622,16 +622,16 @@ flatMapObservable
     .subscribe(onNext: { print("✅flatMap Event: \($0)") })
     .disposed(by: disposeBag)
 
-flatMapObservable
-    .flatMap { _ in return flatMapSecond }
-    .flatMap { _ in return flatMapThird }
-    .subscribe(onNext: { print("✅flatMap Event: \($0)") })
-    .disposed(by: disposeBag)
-
-// not use flatMap
-flatMapObservable
-    .subscribe(onNext: { print("🚫flatMap Event: \($0)") })
-    .disposed(by: disposeBag)
+//flatMapObservable
+//    .flatMap { _ in return flatMapSecond }
+//    .flatMap { _ in return flatMapThird }
+//    .subscribe(onNext: { print("✅flatMap Event: \($0)") })
+//    .disposed(by: disposeBag)
+//
+//// not use flatMap
+//flatMapObservable
+//    .subscribe(onNext: { print("🚫flatMap Event: \($0)") })
+//    .disposed(by: disposeBag)
 
 flatMapFirst.onNext("first.🐱")
 flatMapObservable.accept(flatMapSecond)
@@ -702,6 +702,7 @@ Observable.zip(zipFirst, zipError, resultSelector: { $0 + $1 })
 // catch error
 
 // 不合成
+// 可以不同型別
 Observable.zip(zipFirst, zipSecond)
     .subscribe(onNext: { print("zip3 Event: \($0), \($1)") })
     .disposed(by: disposeBag)
@@ -744,6 +745,7 @@ Observable
     .subscribe(onNext: { print("combineLastest1 Event: \($0)") })
     .disposed(by: disposeBag)
 // 不組合
+// 可以不同型別
 Observable
     .combineLatest(combineLastestFirst, combineLastestSecond)
     .subscribe(onNext: { print("combineLastest2 Event: \($0), \($1)") })
