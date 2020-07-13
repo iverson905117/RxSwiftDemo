@@ -55,6 +55,36 @@ _ = observable.asDriver(onErrorJustReturn: 1)
 _ = observable.asSignal(onErrorJustReturn: 1)
 
 
+// --------------------------
+//         share
+// --------------------------
+
+
+let seq = PublishSubject<Int>()
+let seqMap = seq.map { value -> Int in
+    print("Multiplying by 2: \(value)x2")
+    return value * 2
+}
+let seqShare = seqMap.share()
+let seqShareReplay = seqMap.share(replay: 2)
+
+//seqMap.debug("first").subscribe().disposed(by: disposeBag)
+//seqMap.debug("seconde").subscribe().disposed(by: disposeBag)
+
+//seqShare.debug("first_share").subscribe().disposed(by: disposeBag)
+//seqShare.debug("seconde_share").subscribe().disposed(by: disposeBag)
+
+seqShareReplay.debug("first_shareReplay").subscribe().disposed(by: disposeBag)
+seqShareReplay.debug("seconde_shareReplay").subscribe().disposed(by: disposeBag)
+
+seq.onNext(2)
+seq.onNext(3)
+//seq.onNext(4)
+//seq.onNext(5)
+seqShareReplay.debug("third_shareReplay").subscribe().disposed(by: disposeBag)
+seqShare.debug("four_share").subscribe().disposed(by: disposeBag)
+seq.onCompleted()
+
 
 // -----------------------
 //         Single
@@ -616,22 +646,22 @@ let flatMapSecond = BehaviorSubject(value: "second.🅰️")
 let flatMapThird = BehaviorSubject(value: "third.⚾️")
 let flatMapObservable = BehaviorRelay(value: flatMapFirst)
 
-// use flatMap
+/// use flatMap
 flatMapObservable
     .flatMap { $0 }
     .subscribe(onNext: { print("✅flatMap Event: \($0)") })
     .disposed(by: disposeBag)
 
-//flatMapObservable
-//    .flatMap { _ in return flatMapSecond }
-//    .flatMap { _ in return flatMapThird }
-//    .subscribe(onNext: { print("✅flatMap Event: \($0)") })
-//    .disposed(by: disposeBag)
-//
-//// not use flatMap
-//flatMapObservable
-//    .subscribe(onNext: { print("🚫flatMap Event: \($0)") })
-//    .disposed(by: disposeBag)
+flatMapObservable
+    .flatMap { _ in return flatMapSecond }
+    .flatMap { _ in return flatMapThird }
+    .subscribe(onNext: { print("✅flatMap Event: \($0)") })
+    .disposed(by: disposeBag)
+
+/// not use flatMap
+flatMapObservable
+    .subscribe(onNext: { print("🚫flatMap Event: \($0)") })
+    .disposed(by: disposeBag)
 
 flatMapFirst.onNext("first.🐱")
 flatMapObservable.accept(flatMapSecond)
@@ -1134,3 +1164,4 @@ errorObservable
         print("errorObservable.retryWhen with max retry catch error")
     })
     .disposed(by: disposeBag)
+
