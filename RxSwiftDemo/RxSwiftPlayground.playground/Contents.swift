@@ -684,7 +684,7 @@ flatMapFirst.onNext("first.🐹")
  */
 
 let flatMapLastFirst = BehaviorSubject(value: "first.👦🏻")
-let flatMapLastSectond = BehaviorSubject(value: "seond.🅰️")
+let flatMapLastSectond = BehaviorSubject(value: "second.🅰️")
 let flatMapLastObservable = BehaviorRelay(value: flatMapLastFirst)
 flatMapLastObservable
     .flatMapLatest { $0 }
@@ -693,7 +693,7 @@ flatMapLastObservable
 
 flatMapLastFirst.onNext("first.🐱")
 flatMapLastObservable.accept(flatMapLastSectond)
-flatMapSecond.onNext("second.🅱️")
+flatMapLastSectond.onNext("second.🅱️")
 flatMapLastFirst.onNext("first.🐶")
 
 
