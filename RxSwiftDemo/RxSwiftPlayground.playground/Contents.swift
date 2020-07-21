@@ -61,28 +61,30 @@ _ = observable.asSignal(onErrorJustReturn: 1)
 
 
 let seq = PublishSubject<Int>()
-let seqMap = seq.map { value -> Int in
+let seqNoShare = seq.map { value -> Int in
+    // 沒 share 被訂閱一次就會被執行一次
+    // 有 share 會共享
     print("Multiplying by 2: \(value)x2")
     return value * 2
 }
-let seqShare = seqMap.share()
-let seqShareReplay = seqMap.share(replay: 2)
+let seqShare = seqNoShare.share()
+let seqShareReplay = seqNoShare.share(replay: 2)
 
-//seqMap.debug("first").subscribe().disposed(by: disposeBag)
-//seqMap.debug("seconde").subscribe().disposed(by: disposeBag)
+//seqNoShare.debug("first").subscribe().disposed(by: disposeBag)
+//seqNoShare.debug("seconde").subscribe().disposed(by: disposeBag)
 
 //seqShare.debug("first_share").subscribe().disposed(by: disposeBag)
 //seqShare.debug("seconde_share").subscribe().disposed(by: disposeBag)
 
-seqShareReplay.debug("first_shareReplay").subscribe().disposed(by: disposeBag)
-seqShareReplay.debug("seconde_shareReplay").subscribe().disposed(by: disposeBag)
+//seqShareReplay.debug("first_shareReplay").subscribe().disposed(by: disposeBag)
+//seqShareReplay.debug("seconde_shareReplay").subscribe().disposed(by: disposeBag)
 
 seq.onNext(2)
 seq.onNext(3)
-//seq.onNext(4)
-//seq.onNext(5)
+
 seqShareReplay.debug("third_shareReplay").subscribe().disposed(by: disposeBag)
 seqShare.debug("four_share").subscribe().disposed(by: disposeBag)
+
 seq.onCompleted()
 
 
@@ -647,10 +649,10 @@ let flatMapThird = BehaviorSubject(value: "third.⚾️")
 let flatMapObservable = BehaviorRelay(value: flatMapFirst)
 
 /// use flatMap
-flatMapObservable
-    .flatMap { $0 }
-    .subscribe(onNext: { print("✅flatMap Event: \($0)") })
-    .disposed(by: disposeBag)
+//flatMapObservable
+//    .flatMap { $0 }
+//    .subscribe(onNext: { print("✅flatMap Event: \($0)") })
+//    .disposed(by: disposeBag)
 
 flatMapObservable
     .flatMap { _ in return flatMapSecond }
@@ -659,9 +661,9 @@ flatMapObservable
     .disposed(by: disposeBag)
 
 /// not use flatMap
-flatMapObservable
-    .subscribe(onNext: { print("🚫flatMap Event: \($0)") })
-    .disposed(by: disposeBag)
+//flatMapObservable
+//    .subscribe(onNext: { print("🚫flatMap Event: \($0)") })
+//    .disposed(by: disposeBag)
 
 flatMapFirst.onNext("first.🐱")
 flatMapObservable.accept(flatMapSecond)
@@ -868,7 +870,7 @@ errorSequence
         print("catch error: \(error)")
         return recoverySequence
     }
-.subscribe(onNext: { print("catchError return recovery Event: \($0)") },
+    .subscribe(onNext: { print("catchError return recovery Event: \($0)") },
            onError: { print("catchError \($0)")},           // 不會觸發
            onCompleted: { print("catchError completed") })  // 不會觸發
     .disposed(by: disposeBag)
@@ -1109,8 +1111,6 @@ errorObservable
         print("errorObservable.retry catch error") // 重試 3 次後仍錯誤，就將錯誤拋出
     })
     .disposed(by: disposeBag)
-
-
 
 // --------------------
 //      retryWhen
