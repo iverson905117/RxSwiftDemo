@@ -1165,3 +1165,12 @@ errorObservable
     })
     .disposed(by: disposeBag)
 
+
+
+// --------------------------
+//           take
+// --------------------------
+Observable.of("🐱", "🐰", "🐶", "🐸", "🐷", "🐵")
+    .take(1)
+    .subscribe(onNext: { print("take element: \($0)") })
+    .disposed(by: disposeBag)
