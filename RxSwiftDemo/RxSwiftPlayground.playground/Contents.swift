@@ -59,7 +59,6 @@ _ = observable.asSignal(onErrorJustReturn: 1)
 //         share
 // --------------------------
 
-
 let seq = PublishSubject<Int>()
 let seqNoShare = seq.map { value -> Int in
     // 沒 share 被訂閱一次就會被執行一次
@@ -87,6 +86,26 @@ seqShare.debug("four_share").subscribe().disposed(by: disposeBag)
 
 seq.onCompleted()
 
+// Share action
+let dataObservable = Observable<String>.create { observer -> Disposable in
+  print("Feching data...")
+  DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 2, execute: {
+    observer.onNext("Some data from the internet")
+  })
+  return Disposables.create()
+}
+let dataDriver = dataObservable.asDriver(onErrorJustReturn: "")
+dataDriver
+    .drive(onNext: { print($0) })
+    .disposed(by: disposeBag)
+dataDriver
+    .drive(onNext: { print($0) })
+    .disposed(by: disposeBag)
+/*
+Feching data...
+Some data from the internet
+Some data from the internet
+ */
 
 // -----------------------
 //         Single
@@ -416,9 +435,9 @@ asyncSubject.onCompleted()
 //              ↑  X --->
 
 let publishSubject = PublishSubject<String>()
-publishSubject
-    .subscribe { print("PublishSubject: 1 Event:", $0) }
-    .disposed(by: disposeBag)
+//publishSubject
+//    .subscribe { print("PublishSubject: 1 Event:", $0) }
+//    .disposed(by: disposeBag)
 
 publishSubject.onNext("🐶")
 publishSubject.onNext("🐱")
@@ -1165,6 +1184,26 @@ errorObservable
     })
     .disposed(by: disposeBag)
 
+errorTestFlag = true
+errorTimes = 0
+errorObservable
+    .observeOn(MainScheduler.asyncInstance)
+    .retryWhen { (rxError: Observable<Error>) -> Observable<()> in
+        return rxError.enumerated().flatMap { (index, error) -> Observable<()> in
+            print(index)
+            guard index < maxRetryCount else { // 超過最大次數就拋出錯誤
+                return Observable.error(CatchError.tooMany)
+//                throw CatchError.tooMany
+            }
+            return Observable.just("").asObservable().map{_ in return () }
+        }
+    }
+    .subscribe(onNext: { value in
+        print("errorObservable.retryWhen with max retry: Event: \(value)")
+    }, onError: { error in
+        print("errorObservable.retryWhen with max retry catch error")
+    })
+    .disposed(by: disposeBag)
 
 
 // --------------------------
@@ -1173,4 +1212,9 @@ errorObservable
 Observable.of("🐱", "🐰", "🐶", "🐸", "🐷", "🐵")
     .take(1)
     .subscribe(onNext: { print("take element: \($0)") })
+    .disposed(by: disposeBag)
+
+Observable.of("🐱", "🐰", "🐶", "🐸", "🐷", "🐵")
+    .takeLast(1)
+    .subscribe(onNext: { print("take last element: \($0)") })
     .disposed(by: disposeBag)
