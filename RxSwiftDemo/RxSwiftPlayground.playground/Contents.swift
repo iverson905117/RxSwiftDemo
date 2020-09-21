@@ -63,7 +63,10 @@ let seq = PublishSubject<Int>()
 let seqNoShare = seq.map { value -> Int in
     // 沒 share 被訂閱一次就會被執行一次
     // 有 share 會共享
-    print("Multiplying by 2: \(value)x2")
+    DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 2, execute: {
+        print("Multiplying by 2: \(value)x2")
+    })
+//    print("Multiplying by 2: \(value)x2")
     return value * 2
 }
 let seqShare = seqNoShare.share()
@@ -72,8 +75,8 @@ let seqShareReplay = seqNoShare.share(replay: 2)
 //seqNoShare.debug("first").subscribe().disposed(by: disposeBag)
 //seqNoShare.debug("seconde").subscribe().disposed(by: disposeBag)
 
-//seqShare.debug("first_share").subscribe().disposed(by: disposeBag)
-//seqShare.debug("seconde_share").subscribe().disposed(by: disposeBag)
+seqShare.debug("first_share").subscribe().disposed(by: disposeBag)
+seqShare.debug("seconde_share").subscribe().disposed(by: disposeBag)
 
 //seqShareReplay.debug("first_shareReplay").subscribe().disposed(by: disposeBag)
 //seqShareReplay.debug("seconde_shareReplay").subscribe().disposed(by: disposeBag)
@@ -86,25 +89,74 @@ seqShare.debug("four_share").subscribe().disposed(by: disposeBag)
 
 seq.onCompleted()
 
-// Share action
-let dataObservable = Observable<String>.create { observer -> Disposable in
-  print("Feching data...")
-  DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 2, execute: {
-    observer.onNext("Some data from the internet")
-  })
-  return Disposables.create()
-}
-let dataDriver = dataObservable.asDriver(onErrorJustReturn: "")
-dataDriver
-    .drive(onNext: { print($0) })
+// Share observable property
+var count = 0
+let shareObservable = Observable<String>.create { observer -> Disposable in
+    print("Feching data...")
+    count += 1
+    DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 2, execute: {
+        observer.onNext("shareObservable test \(count)")
+        observer.onCompleted()
+    })
+    return Disposables.create()
+}.share()
+
+shareObservable
+    .subscribe(onNext: { print($0) })
     .disposed(by: disposeBag)
-dataDriver
-    .drive(onNext: { print($0) })
+shareObservable
+    .subscribe(onNext: { print($0) })
     .disposed(by: disposeBag)
+
+DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 3, execute: {
+    shareObservable
+        .subscribe(onNext: { print($0) })
+        .disposed(by: disposeBag)
+})
+
 /*
 Feching data...
-Some data from the internet
-Some data from the internet
+shareObservable test 1
+shareObservable test 1
+Feching data...
+shareObservable test 2
+ */
+
+// Share observable method
+func startRefreshToken() -> Observable<String> {
+    return Observable<String>.create { (observer) -> Disposable in
+        print("....")
+        DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 2, execute: {
+            count += 1
+            observer.onNext("just a test \(count)")
+            // onCompleted 前訂閱都會是 share
+            observer.onCompleted()
+            // onCompleted 之後訂閱會重新執行一次
+        })
+        return Disposables.create()
+
+    }
+}
+
+let shareStartRefreshToken = startRefreshToken().share()
+
+// Share 訂閱
+shareStartRefreshToken.subscribe(onNext: { print($0) }).disposed(by: disposeBag)
+shareStartRefreshToken.subscribe(onNext: { print($0) }).disposed(by: disposeBag)
+shareStartRefreshToken.subscribe(onNext: { print($0) }).disposed(by: disposeBag)
+
+// 上一次訂閱結束後再訂閱
+DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 3, execute: {
+    shareStartRefreshToken.subscribe(onNext: { print($0) }).disposed(by: disposeBag)
+})
+
+/*
+....
+just a test 1
+just a test 1
+just a test 1
+....
+just a test 2
  */
 
 // -----------------------
