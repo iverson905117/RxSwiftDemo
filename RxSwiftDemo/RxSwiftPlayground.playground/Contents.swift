@@ -19,7 +19,8 @@ enum CatchError: Error {
 // ==================================
 
 /*
- * Event: onNext, onError, onCompleted
+ - Event: onNext, onError, onCompleted
+ - Cold Observable
  */
 
 _ = Observable<String>.of("Observable")
@@ -33,7 +34,7 @@ let observable = Observable<Int>.create({ observer -> Disposable in
     //observer.onError(<#T##error: Error##Error#>)
     observer.onCompleted()
     return Disposables.create()
-})
+    })
 
 let tap: Observable<Void> = button.rx.tap.asObservable()
 tap
@@ -55,109 +56,6 @@ _ = observable.asDriver(onErrorJustReturn: 1)
 _ = observable.asSignal(onErrorJustReturn: 1)
 
 
-// --------------------------
-//         share
-// --------------------------
-
-let seq = PublishSubject<Int>()
-let seqNoShare = seq.map { value -> Int in
-    // 沒 share 被訂閱一次就會被執行一次
-    // 有 share 會共享
-    DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 2, execute: {
-        print("Multiplying by 2: \(value)x2")
-    })
-//    print("Multiplying by 2: \(value)x2")
-    return value * 2
-}
-let seqShare = seqNoShare.share()
-let seqShareReplay = seqNoShare.share(replay: 2)
-
-//seqNoShare.debug("first").subscribe().disposed(by: disposeBag)
-//seqNoShare.debug("seconde").subscribe().disposed(by: disposeBag)
-
-seqShare.debug("first_share").subscribe().disposed(by: disposeBag)
-seqShare.debug("seconde_share").subscribe().disposed(by: disposeBag)
-
-//seqShareReplay.debug("first_shareReplay").subscribe().disposed(by: disposeBag)
-//seqShareReplay.debug("seconde_shareReplay").subscribe().disposed(by: disposeBag)
-
-seq.onNext(2)
-seq.onNext(3)
-
-seqShareReplay.debug("third_shareReplay").subscribe().disposed(by: disposeBag)
-seqShare.debug("four_share").subscribe().disposed(by: disposeBag)
-
-seq.onCompleted()
-
-// Share observable property
-var count = 0
-let shareObservable = Observable<String>.create { observer -> Disposable in
-    print("Feching data...")
-    count += 1
-    DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 2, execute: {
-        observer.onNext("shareObservable test \(count)")
-        observer.onCompleted()
-    })
-    return Disposables.create()
-}.share()
-
-shareObservable
-    .subscribe(onNext: { print($0) })
-    .disposed(by: disposeBag)
-shareObservable
-    .subscribe(onNext: { print($0) })
-    .disposed(by: disposeBag)
-
-DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 3, execute: {
-    shareObservable
-        .subscribe(onNext: { print($0) })
-        .disposed(by: disposeBag)
-})
-
-/*
-Feching data...
-shareObservable test 1
-shareObservable test 1
-Feching data...
-shareObservable test 2
- */
-
-// Share observable method
-func startRefreshToken() -> Observable<String> {
-    return Observable<String>.create { (observer) -> Disposable in
-        print("....")
-        DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 2, execute: {
-            count += 1
-            observer.onNext("just a test \(count)")
-            // onCompleted 前訂閱都會是 share
-            observer.onCompleted()
-            // onCompleted 之後訂閱會重新執行一次
-        })
-        return Disposables.create()
-
-    }
-}
-
-let shareStartRefreshToken = startRefreshToken().share()
-
-// Share 訂閱
-shareStartRefreshToken.subscribe(onNext: { print($0) }).disposed(by: disposeBag)
-shareStartRefreshToken.subscribe(onNext: { print($0) }).disposed(by: disposeBag)
-shareStartRefreshToken.subscribe(onNext: { print($0) }).disposed(by: disposeBag)
-
-// 上一次訂閱結束後再訂閱
-DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 3, execute: {
-    shareStartRefreshToken.subscribe(onNext: { print($0) }).disposed(by: disposeBag)
-})
-
-/*
-....
-just a test 1
-just a test 1
-just a test 1
-....
-just a test 2
- */
 
 // -----------------------
 //         Single
@@ -172,20 +70,31 @@ just a test 2
 _ = Single.just("Single")
 
 func getSingle() -> Single<Bool> {
+    print("single...")
     return Single<Bool>.create { single in
-        single(.success(true))
+        DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 2, execute: {
+            single(.success(true))
+        })
         // or
 //        single(.error(<#T##Error#>))
         return Disposables.create()
     }
 }
+
 let single = getSingle()
 single
     .subscribe(onSuccess: { success in
         // success
+        print("single success")
     }, onError: { error in
         // error
-    }).disposed(by: disposeBag)
+        print("single error")
+    })
+    .disposed(by: disposeBag)
+
+let shareSingle = single.asObservable().share()
+shareSingle.debug().subscribe().dispose()
+shareSingle.debug().subscribe().dispose()
 
 _ = single.asObservable()
 _ = single.asDriver(onErrorJustReturn: false)
@@ -374,6 +283,26 @@ textField.rx.text.orEmpty
     .subscribe(anyObserver)
     .disposed(by: disposeBag)
 
+textField.text = "1121"
+let nameValid = textField.rx.text
+    .orEmpty
+    .asObservable()
+    .flatMapLatest { text -> Driver<Bool> in
+        return .just(text.count <= 3)
+    }
+
+let anyObserver2: AnyObserver<Bool> = AnyObserver { event in
+    switch event {
+    case .next(let isHidden):
+        print("hidden: \(isHidden)")
+        textField.isHidden = isHidden
+    default:
+        break
+    }
+}
+nameValid
+    .bind(to: anyObserver2)
+    .disposed(by: disposeBag)
 
 // -----------------------
 //         Binder
@@ -384,13 +313,7 @@ textField.rx.text.orEmpty
  - 確保綁定都是在給定Scheduler上執行（默認MainScheduler）
  */
 
-textField.text = "112"
-let nameValid = textField.rx.text
-    .orEmpty
-    .asObservable()
-    .flatMapLatest { text -> Driver<Bool> in
-        return .just(text.count <= 3)
-}
+textField.text = "123"
 let binder = Binder<Bool>(textField) { (view, isHidden) in
     print("hidden: \(isHidden)")
     view.isHidden = isHidden
@@ -398,7 +321,6 @@ let binder = Binder<Bool>(textField) { (view, isHidden) in
 nameValid
     .bind(to: binder)
     .disposed(by: disposeBag)
-
 
 
 // ============================================
@@ -1270,3 +1192,115 @@ Observable.of("🐱", "🐰", "🐶", "🐸", "🐷", "🐵")
     .takeLast(1)
     .subscribe(onNext: { print("take last element: \($0)") })
     .disposed(by: disposeBag)
+
+
+// --------------------------
+//           share
+// --------------------------
+
+// Share map
+
+let seq = PublishSubject<Int>()
+let seqNoShare = seq.map { value -> Int in
+    // 沒 share 被訂閱一次就會被執行一次
+    // 有 share 會共享
+    DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 2, execute: {
+        print("Multiplying by 2: \(value)x2")
+    })
+//    print("Multiplying by 2: \(value)x2")
+    return value * 2
+}
+let seqShare = seqNoShare.share()
+let seqShareReplay = seqNoShare.share(replay: 2)
+
+//seqNoShare.debug("first").subscribe().disposed(by: disposeBag)
+//seqNoShare.debug("seconde").subscribe().disposed(by: disposeBag)
+
+seqShare.debug("first_share").subscribe().disposed(by: disposeBag)
+seqShare.debug("seconde_share").subscribe().disposed(by: disposeBag)
+
+//seqShareReplay.debug("first_shareReplay").subscribe().disposed(by: disposeBag)
+//seqShareReplay.debug("seconde_shareReplay").subscribe().disposed(by: disposeBag)
+
+seq.onNext(2)
+seq.onNext(3)
+
+seqShareReplay.debug("third_shareReplay").subscribe().disposed(by: disposeBag)
+seqShare.debug("four_share").subscribe().disposed(by: disposeBag)
+
+seq.onCompleted()
+
+
+// Share observable property
+
+var count = 0
+let shareObservable = Observable<String>.create { observer -> Disposable in
+    print("Feching data...")
+    count += 1
+    DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 2, execute: {
+        observer.onNext("shareObservable test \(count)")
+        observer.onCompleted() // onCompleted 前都是 shared
+    })
+    return Disposables.create()
+}.share()
+
+shareObservable
+    .subscribe(onNext: { print($0) })
+    .disposed(by: disposeBag)
+shareObservable
+    .subscribe(onNext: { print($0) })
+    .disposed(by: disposeBag)
+
+DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 3, execute: {
+    shareObservable
+        .subscribe(onNext: { print($0) })
+        .disposed(by: disposeBag)
+})
+
+/*
+Feching data...
+shareObservable test 1
+shareObservable test 1
+Feching data...
+shareObservable test 2
+ */
+
+
+// Share observable method
+// note: Single success = onCompleted
+
+func startRefreshToken() -> Observable<String> {
+    return Observable<String>.create { (observer) -> Disposable in
+        print("....")
+        DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 2, execute: {
+            count += 1
+            observer.onNext("just a test \(count)")
+            // onCompleted 前訂閱都會是 share
+            observer.onCompleted()
+            // onCompleted 之後訂閱都會重新執行
+        })
+        return Disposables.create()
+
+    }
+}
+
+let shareStartRefreshToken = startRefreshToken().share()
+
+// Share 訂閱
+shareStartRefreshToken.subscribe(onNext: { print($0) }).disposed(by: disposeBag)
+shareStartRefreshToken.subscribe(onNext: { print($0) }).disposed(by: disposeBag)
+shareStartRefreshToken.subscribe(onNext: { print($0) }).disposed(by: disposeBag)
+
+// 上一次訂閱結束後再訂閱
+DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 3, execute: {
+    shareStartRefreshToken.subscribe(onNext: { print($0) }).disposed(by: disposeBag)
+})
+
+/*
+....
+just a test 1
+just a test 1
+just a test 1
+....
+just a test 2
+ */
