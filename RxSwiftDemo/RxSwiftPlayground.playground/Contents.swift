@@ -14,6 +14,7 @@ enum CatchError: Error {
     case tooMany
 }
 
+
 // ==================================
 //       Observable 可監聽序列
 // ==================================
@@ -76,12 +77,13 @@ func getSingle() -> Single<Bool> {
             single(.success(true))
         })
         // or
-//        single(.error(<#T##Error#>))
+//        single(.error(CatchError.test))
         return Disposables.create()
     }
 }
 
 let single = getSingle()
+
 single
     .subscribe(onSuccess: { success in
         // success
@@ -101,6 +103,7 @@ _ = single.asDriver(onErrorJustReturn: false)
 _ = single.asMaybe()
 _ = single.asCompletable()
 _ = single.asSignal(onErrorJustReturn: false)
+
 
 
 
@@ -424,7 +427,6 @@ publishSubject.onNext("🅰️")
 publishSubject.onNext("🅱️")
 
 
-
 // ---------------------
 //    PublishRelay
 // ---------------------
@@ -642,16 +644,16 @@ let flatMapThird = BehaviorSubject(value: "third.⚾️")
 let flatMapObservable = BehaviorRelay(value: flatMapFirst)
 
 /// use flatMap
-//flatMapObservable
-//    .flatMap { $0 }
-//    .subscribe(onNext: { print("✅flatMap Event: \($0)") })
-//    .disposed(by: disposeBag)
-
 flatMapObservable
-    .flatMap { _ in return flatMapSecond }
-    .flatMap { _ in return flatMapThird }
+    .flatMap { $0 }
     .subscribe(onNext: { print("✅flatMap Event: \($0)") })
     .disposed(by: disposeBag)
+
+//flatMapObservable
+//    .flatMap { _ in return flatMapSecond }
+//    .flatMap { _ in return flatMapThird }
+//    .subscribe(onNext: { print("✅flatMap Event: \($0)") })
+//    .disposed(by: disposeBag)
 
 /// not use flatMap
 //flatMapObservable
@@ -679,7 +681,7 @@ flatMapFirst.onNext("first.🐹")
  */
 
 let flatMapLastFirst = BehaviorSubject(value: "first.👦🏻")
-let flatMapLastSectond = BehaviorSubject(value: "second.🅰️")
+let flatMapLastSecond = BehaviorSubject(value: "second.🅰️")
 let flatMapLastObservable = BehaviorRelay(value: flatMapLastFirst)
 flatMapLastObservable
     .flatMapLatest { $0 }
@@ -687,9 +689,10 @@ flatMapLastObservable
     .disposed(by: disposeBag)
 
 flatMapLastFirst.onNext("first.🐱")
-flatMapLastObservable.accept(flatMapLastSectond)
-flatMapLastSectond.onNext("second.🅱️")
+flatMapLastObservable.accept(flatMapLastSecond)
+flatMapLastSecond.onNext("second.🅱️")
 flatMapLastFirst.onNext("first.🐶")
+flatMapLastObservable.accept(flatMapLastFirst)
 
 
 
@@ -752,7 +755,7 @@ zipError.onNext("B")  // 已觸發 onError 觀察者被終止了
 // -------------------------
 
 /*
- * 當多個 Observables 中任何一個發出一個元素，就發出一個元素。這個元素是由這些 Observables 中最新的元素，通過一個函數組合起來的
+ * 當多個 Observables (每個至少要有一個元素)中任何一個發出一個元素，就發出一個元素。這個元素是由這些 Observables 中最新的元素，通過一個函數組合起來的
  * 元素必須同樣型別
  * https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/decision_tree/combineLatest.html
  */
@@ -853,19 +856,21 @@ bufferObservable.onNext("B")
 /*
  * 從一個錯誤事件中恢復，將錯誤事件替換成一個備選序列
  * catchError 操作符將會攔截一個 error 事件，將它替換成其他的元素或者一組元素，然後傳遞給觀察者。這樣可以使得 Observable 正常結束，或者根本都不需要結束。
+ * 收到任何 error 一律會觸發
  */
 
 let errorSequence = PublishSubject<String>()
 let recoverySequence = PublishSubject<String>()
 
 errorSequence
+    .map { _ in throw CatchError.test } // throw error
     .catchError { error -> Observable<String> in
-        print("catch error: \(error)")
+        print("[catchError] catch error: \(error)")
         return recoverySequence
     }
-    .subscribe(onNext: { print("catchError return recovery Event: \($0)") },
-           onError: { print("catchError \($0)")},           // 不會觸發
-           onCompleted: { print("catchError completed") })  // 不會觸發
+    .subscribe(onNext: { print("[catchError] onNext: \($0)") },
+           onError: { print("[catchError] onError: \($0)")},
+           onCompleted: { print("[catchError] onCompleted") })
     .disposed(by: disposeBag)
 
 errorSequence.onNext("😬")
@@ -874,7 +879,7 @@ errorSequence.onNext("😡")
 errorSequence.onNext("🔴")
 errorSequence.onError(CatchError.test)  // 發生 error
 recoverySequence.onNext("😊")           // 替換成觀察 recoverySequence
-errorSequence.onNext("🥵")              // 將不繼續觀察 errorSequence
+errorSequence.onNext("🥵")              // 不繼續觀察 errorSequence
 recoverySequence.onNext("😊😊")
 
 
@@ -978,6 +983,7 @@ concatMapSubject1.onNext("1.I am completed") // 已完成不會再被觀察
 
 /*
  * 將多個 Observables 合併成一個 (同一條序列內)
+ * 必須相同 Type
  * https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/decision_tree/merge.html
  */
 
@@ -1304,3 +1310,96 @@ just a test 1
 ....
 just a test 2
  */
+
+
+
+
+// --------------------------
+//    distinctUntilChanged
+// --------------------------
+
+// 後一個元素與前一個元素不相同才會被發出來
+
+Observable.of("🐱", "🐷", "🐱", "🐱", "🐱", "🐵", "🐱")
+    .distinctUntilChanged()
+    .subscribe(onNext: { print("distinctUntilChanged: \($0)") })
+    .disposed(by: disposeBag)
+
+Observable.of("🐱", "🐷", "🐱", "🐱", "🐱", "🐵", "🐱")
+    .distinctUntilChanged { $0 == $1 }
+    .subscribe(onNext: { print("distinctUntilChanged: \($0)") })
+    .disposed(by: disposeBag)
+
+/*
+distinctUntilChanged: 🐱
+distinctUntilChanged: 🐷
+distinctUntilChanged: 🐱
+distinctUntilChanged: 🐵
+distinctUntilChanged: 🐱
+ */
+
+struct AAA: Equatable {
+    let a: Int
+}
+let a1 = AAA(a: 1)
+let a2 = AAA(a: 1)
+let a3 = AAA(a: 1)
+
+Observable.of(a1, a2, a3)
+    .distinctUntilChanged()
+    .subscribe(onNext: { print("distinctUntilChanged: \($0.a)") })
+    .disposed(by: disposeBag)
+
+
+
+
+// --------------------------
+//        bind 失敗案例
+//       Observable
+// --------------------------
+
+let delayObsevable = Observable<String>.create { observer -> Disposable in
+    print("delay start")
+    DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 2, execute: {
+//        observer.onNext("delayObsevable")
+//        observer.onCompleted()
+        observer.onError(CatchError.test)
+    })
+    return Disposables.create()
+}
+
+let bindExam = BehaviorRelay(value: "")
+
+// single 如果是 error 就不會往下執行 flatMap
+print("bindExam error...")
+Observable<String>.error(CatchError.test)
+    .flatMap { _ -> Observable<String> in
+        print("error can't execute here")
+        return Observable.just("")
+    }
+    .catchErrorJustReturn("")
+    .bind(to: bindExam)
+    .disposed(by: disposeBag)
+
+// 各種 error test
+Observable<String>.just("")
+    .flatMap { _ in return delayObsevable } // delay error, delay time 過後才會進入下一個 flatMap
+    .flatMap { t -> Observable<String> in   // throw error
+        print("text: \(t)")
+        print("bindExam throw error...")
+        throw CatchError.test // 直接跳過下一個 flatMap
+    }
+    .flatMap { _ -> Observable<String> in  // return error
+        print("bindExam return error...")
+        return Observable.error(CatchError.test)
+    }
+    .catchErrorJustReturn("bindExam: default") // 當可能發生 error 的情況 bind 必須要給 error 預設值
+    .bind(to: bindExam)
+    .disposed(by: disposeBag)
+
+bindExam.subscribe(onNext: { print($0) }).disposed(by: disposeBag)
+
+
+// startWith
+// withLatestFrom
+
