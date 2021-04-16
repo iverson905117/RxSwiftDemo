@@ -14,9 +14,59 @@ enum CatchError: Error {
     case tooMany
 }
 
+// ==================================
+//              測試區
+// ==================================
+
+let timer111 = Observable<Int>.timer(.seconds(0), period: .seconds(2), scheduler: MainScheduler.instance).take(1)
+let pppp = PublishSubject<Int>()
+
+let aaa = Observable.merge(pppp, timer111)
+aaa.subscribe(onNext: { _ in print("123") })
+pppp.onNext(333)
+
+class API {
+    
+    enum APIError: Error {
+        case unknown
+    }
+
+    func request() -> Single<Void> {
+        .create { (single) -> Disposable in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                if Bool.random() {
+                    single(.success(()))
+                } else {
+                    single(.error(APIError.unknown))
+                }
+            }
+            return Disposables.create()
+        }
+    }
+    
+}
+
+let timer = Observable<Int>.timer(.seconds(0), period: .seconds(2), scheduler: MainScheduler.instance).share()
+
+let subject = PublishSubject<Void>()
+let sResult = subject.flatMapLatest { API().request() }
+
+sResult
+    .debug("A")
+    .subscribe()
+    .disposed(by: disposeBag)
+
+subject.onNext(())
+subject.onNext(())
+subject.onNext(())
+// 一發生錯誤後就被銷毀了
+
+// materialize
+let mResult = subject.flatMapLatest { API().request().asObservable().materialize() }.share()
+
 
 // ==================================
-//       Observable 可監聽序列
+//       [Observable] 可監聽序列
 // ==================================
 
 /*
@@ -59,7 +109,7 @@ _ = observable.asSignal(onErrorJustReturn: 1)
 
 
 // -----------------------
-//         Single
+//         [Single]
 // -----------------------
 
 /*
@@ -108,7 +158,7 @@ _ = single.asSignal(onErrorJustReturn: false)
 
 
 // -----------------------
-//      Completable
+//      [Completable]
 // -----------------------
 
 /*
@@ -139,7 +189,7 @@ completable
 
 
 // -----------------------
-//         Maybe
+//         [Maybe]
 // -----------------------
 
 /*
@@ -173,7 +223,7 @@ generateString()
 
 
 // -------------------------------
-//            Driver
+//            [Driver]
 // -------------------------------
 
 /*
@@ -209,7 +259,7 @@ print("Label: \(label.text!)")
 
 
 // -----------------------
-//         Signal
+//         [Signal]
 // -----------------------
 
 /*
@@ -265,7 +315,7 @@ event.emit(onNext: newObserver) // 不會回放給新觀察者
 
 
 // -----------------------
-//      AnyObserver
+//      [AnyObserver]
 // -----------------------
 
 /*
@@ -308,7 +358,7 @@ nameValid
     .disposed(by: disposeBag)
 
 // -----------------------
-//         Binder
+//         [Binder]
 // -----------------------
 
 /*
@@ -355,7 +405,7 @@ print("🐼\(String(describing: textField.text))")
 
 
 // -----------------------
-//      AsyncSubject
+//      [AsyncSubject]
 // -----------------------
 // https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/rxswift_core/observable_and_observer/async_subject.html
 
@@ -390,7 +440,7 @@ asyncSubject.onCompleted()
 
 
 // -----------------------
-//     PublishSubject
+//     [PublishSubject]
 // -----------------------
 // https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/rxswift_core/observable_and_observer/publish_subject.html
 
@@ -419,16 +469,16 @@ let publishSubject = PublishSubject<String>()
 publishSubject.onNext("🐶")
 publishSubject.onNext("🐱")
 
-publishSubject
-    .subscribe { print("PublishSubject: 2 Event:", $0) }
-    .disposed(by: disposeBag)
+//publishSubject
+//    .subscribe { print("PublishSubject: 2 Event:", $0) }
+//    .disposed(by: disposeBag)
 
 publishSubject.onNext("🅰️")
 publishSubject.onNext("🅱️")
 
 
 // ---------------------
-//    PublishRelay
+//    [PublishRelay]
 // ---------------------
 
 /*
@@ -446,7 +496,7 @@ publishRelay.accept("🐱")
 
 
 // -----------------------
-//     ReplaySubject
+//     [ReplaySubject]
 // -----------------------
 
 /*
@@ -478,7 +528,7 @@ replaySubject.onNext("🅱️")
 
 
 // -----------------------
-//     BehaviorSubject
+//     [BehaviorSubject]
 // -----------------------
 // https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/rxswift_core/observable_and_observer/behavior_subject.html
 
@@ -526,7 +576,7 @@ behaviorSubject.onNext("🍊")
 
 
 // ---------------------
-//    BehaviorRelay
+//    [BehaviorRelay]
 // ---------------------
 
 /*
@@ -582,7 +632,7 @@ behaviorRelay.accept("🐱")
  */
 
 // -------------------------
-//        filter
+//        [filter]
 // -------------------------
 
 /*
@@ -603,7 +653,7 @@ Observable.of(2, 30, 22, 5, 60, 1)
 
 
 // -------------------------
-//           map
+//           [map]
 // -------------------------
 
 /*
@@ -626,7 +676,7 @@ Observable.of(1, 2, 3)
 
 
 // -------------------------
-//         flatMap
+//         [flatMap]
 // -------------------------
 
 /*
@@ -638,41 +688,41 @@ Observable.of(1, 2, 3)
  */
 
 
-let flatMapFirst = BehaviorSubject(value: "first.👦🏻")
-let flatMapSecond = BehaviorSubject(value: "second.🅰️")
-let flatMapThird = BehaviorSubject(value: "third.⚾️")
-let flatMapObservable = BehaviorRelay(value: flatMapFirst)
+let flatMap1 = BehaviorSubject(value: "first.👦🏻")
+let flatMap2 = BehaviorSubject(value: "second.🅰️")
+let flatMap3 = BehaviorSubject(value: "third.⚾️")
+let flatMapObservable = BehaviorRelay(value: flatMap1)
 
 /// use flatMap
-flatMapObservable
-    .flatMap { $0 }
-    .subscribe(onNext: { print("✅flatMap Event: \($0)") })
-    .disposed(by: disposeBag)
+//flatMapObservable
+//    .flatMap { $0 }
+//    .subscribe(onNext: { print("✅flatMap Event: \($0)") })
+//    .disposed(by: disposeBag)
 
 //flatMapObservable
-//    .flatMap { _ in return flatMapSecond }
-//    .flatMap { _ in return flatMapThird }
+//    .flatMap { _ in return flatMap2 }
+//    .flatMap { _ in return flatMap3 }
 //    .subscribe(onNext: { print("✅flatMap Event: \($0)") })
 //    .disposed(by: disposeBag)
 
 /// not use flatMap
-//flatMapObservable
-//    .subscribe(onNext: { print("🚫flatMap Event: \($0)") })
-//    .disposed(by: disposeBag)
+flatMapObservable
+    .subscribe(onNext: { print("🚫flatMap Event: \($0)") })
+    .disposed(by: disposeBag)
 
-flatMapFirst.onNext("first.🐱")
-flatMapObservable.accept(flatMapSecond)
-flatMapSecond.onNext("second.🅱️")
-flatMapFirst.onNext("first.🐶")
-flatMapObservable.accept(flatMapThird)
-flatMapThird.onNext("third.🏈")
-flatMapSecond.onNext("second.🅰️🅱️")
-flatMapFirst.onNext("first.🐹")
+flatMap1.onNext("first.🐱")
+flatMapObservable.accept(flatMap2)
+flatMap2.onNext("second.🅱️")
+flatMap1.onNext("first.🐶")
+flatMapObservable.accept(flatMap3)
+flatMap3.onNext("third.🏈")
+flatMap2.onNext("second.🅰️🅱️")
+flatMap1.onNext("first.🐹")
 
 
 
 // -------------------------
-//       flatMapLast
+//       [flatMapLast]
 // -------------------------
 
 /*
@@ -680,20 +730,42 @@ flatMapFirst.onNext("first.🐹")
  * flatMapLatest 操作符將源 Observable 的每一個元素應用一個轉換方法，將他們轉換成 Observables。一旦轉換出一個新的 Observable，就只發出它的元素，舊的 Observables 的元素將被忽略掉。
  */
 
-let flatMapLastFirst = BehaviorSubject(value: "first.👦🏻")
-let flatMapLastSecond = BehaviorSubject(value: "second.🅰️")
-let flatMapLastObservable = BehaviorRelay(value: flatMapLastFirst)
+let flatMapLast1 = BehaviorSubject(value: "first.👦🏻")
+let flatMapLast2 = BehaviorSubject(value: "second.🅰️")
+let flatMapLastObservable = BehaviorRelay(value: flatMapLast1)
 flatMapLastObservable
     .flatMapLatest { $0 }
     .subscribe(onNext: { print("flatMapLast Event: \($0)") })
     .disposed(by: disposeBag)
 
-flatMapLastFirst.onNext("first.🐱")
-flatMapLastObservable.accept(flatMapLastSecond)
-flatMapLastSecond.onNext("second.🅱️")
-flatMapLastFirst.onNext("first.🐶")
-flatMapLastObservable.accept(flatMapLastFirst)
+flatMapLast1.onNext("first.🐱")
+flatMapLastObservable.accept(flatMapLast2)
+flatMapLast2.onNext("second.🅱️")
+flatMapLast1.onNext("first.🐶")
 
+
+// -------------------------
+//       [flatMapFirst]
+// -------------------------
+
+let flatMapFirst1 = BehaviorSubject(value: "first.👦🏻")
+let flatMapFirst2 = BehaviorSubject(value: "second.🅰️")
+let flatMapFirstObservable = BehaviorRelay(value: flatMapFirst1)
+flatMapFirstObservable
+    .flatMapFirst { $0 }
+    .subscribe(onNext: { print("flatMapFirst Event: \($0)") })
+    .disposed(by: disposeBag)
+
+flatMapFirst1.onNext("first.🐱")
+flatMapFirstObservable.accept(flatMapFirst2)
+flatMapFirst2.onNext("second.🅱️")
+flatMapFirst1.onNext("first.🐶")
+
+/**
+ flatMapFirst Event: first.👦🏻
+ flatMapFirst Event: first.🐱
+ flatMapFirst Event: first.🐶
+ */
 
 
 // -------------------------
@@ -1400,6 +1472,122 @@ Observable<String>.just("")
 bindExam.subscribe(onNext: { print($0) }).disposed(by: disposeBag)
 
 
-// startWith
-// withLatestFrom
+// --------------------------
+//      withLatestFrom
+// --------------------------
+// https://beeth0ven.github.io/RxSwift-Chinese-Documentation/content/decision_tree/withLatestFrom.html
 
+let firstSubject = PublishSubject<String>()
+let secondSubject = PublishSubject<String>()
+
+// 當第一個Observable發出一個元素時，就立即收回第二個Observable中最新的元素，然後把第二個Observable中最新的元素發送出去。
+firstSubject
+    .withLatestFrom(secondSubject)
+    .subscribe(onNext: { print($0) })
+    .disposed(by: disposeBag)
+
+firstSubject.onNext("🅰️")
+firstSubject.onNext("🅱️")
+secondSubject.onNext("1")
+secondSubject.onNext("2")
+firstSubject.onNext("🆎")
+// 2
+
+// 當第一個Observable發出一個元素時，就立即收回第二個Observable中最新的元素，
+// 將第一個Observable中最新的元素first和第二個Observable中最新的元素second組合，然後把組合結果first + second發送出去。
+let firstSubject2 = PublishSubject<String>()
+let secondSubject2 = PublishSubject<String>()
+
+firstSubject2
+    .withLatestFrom(secondSubject2) { (first, second) in
+        return first + second
+    }
+    .subscribe(onNext: { print($0) })
+    .disposed(by: disposeBag)
+
+firstSubject2.onNext("🅰️")
+firstSubject2.onNext("🅱️")
+secondSubject2.onNext("1")
+secondSubject2.onNext("2")
+firstSubject2.onNext("🆎")
+// 🆎2
+
+
+// --------------
+//       Do
+// --------------
+
+// do 會在 subscribe 前被執行
+Observable<[Int]>.of([1, 2, 3])
+    .do(onNext: { element in
+        print("do element:" ,element)
+    }, onError: { error in
+        print("do error:", error)
+    }, onCompleted: {
+        print("do completed")
+    }, onSubscribe: {
+        print("do subscribe")
+    }, onSubscribed: {
+        print("do subscribed")
+    }, onDispose: {
+        print("do dispose")
+    })
+    .subscribe { event in
+        switch event {
+        case .next(let element):
+            print("element:", element)
+        case .error(let error):
+            print("error:", error)
+        case .completed:
+            print("completed")
+        }}
+    .disposed(by: disposeBag)
+
+/*
+ do subscribe
+ do subscribed
+ do element: [1, 2, 3]
+ element: [1, 2, 3]
+ do completed
+ completed
+ do dispose
+ */
+
+let ooo = BehaviorSubject(value: 1)
+//foo().do(onNext: { print("do \($0)") }).subscribe(onNext: { print("subscribe \($0)") }).disposed(by: disposeBag)
+let aaa = ooo.do(onNext: { print("do \($0)") }).subscribe()
+ooo.onNext(2)
+ooo.onNext(3)
+
+/*
+ do 1
+ do 2
+ do 3
+ */
+
+// ------------------
+//     startWith
+// ------------------
+
+Observable.of("🐶", "🐱", "🐭", "🐹")
+    .startWith("1")
+    .startWith("2")
+    .startWith("3", "🅰️", "🅱️")
+    .subscribe(onNext: { print($0) })
+    .disposed(by: disposeBag)
+
+// 3 🅰️ 🅱️ 2 1 🐶 🐱 🐭 🐹
+
+
+// https://ithelp.ithome.com.tw/articles/10246132
+// switchLatest
+
+// trackActivity
+// compactMap
+
+// https://ithelp.ithome.com.tw/articles/10243723
+// elements
+// materialize
+
+// RxSwiftExt
+// RxOptional
