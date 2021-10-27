@@ -17,10 +17,24 @@ class ViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+//        count(from: 10, to: 5, quickStart: true).subscribe(onNext: {
+//            print($0)
+//        }, onCompleted: {
+//            print("complete")
+//        })
+        
 //        retryTest()
 //        test2()
 //        test3()
-        test4()
+//        test4()
+    }
+    
+    func count(from: Int, to: Int, quickStart: Bool) -> Observable<Int> {
+        return Observable<Int>
+            .timer(quickStart ? 0 : 1, period: 1, scheduler: MainScheduler.instance)
+            .take(from - to + 1)
+            .map { from - $0 }
     }
 
     func retryTest() {
@@ -82,19 +96,19 @@ class ViewController: UIViewController {
         
         let index = Observable.merge(first, second.asObservable())
         
-        index.debug("f").subscribe().dispose()
+//        index.debug("f").subscribe().dispose()
         
         let a = index.flatMapLatest { return Observable.just($0) }
         a.debug("a").subscribe().dispose()
-        
-        let b = index.flatMapLatest { return Observable.just($0) }
-        b.debug("b").subscribe().dispose()
-        
-        let c = index.map { $0 }
-        c.debug("c").subscribe().dispose()
-        
-        let d = index.withLatestFrom(second)
-        d.debug("d").subscribe().dispose()
+//
+//        let b = index.flatMapLatest { return Observable.just($0) }
+//        b.debug("b").subscribe().dispose()
+//
+//        let c = index.map { $0 }
+//        c.debug("c").subscribe().dispose()
+//
+//        let d = index.withLatestFrom(second)
+//        d.debug("d").subscribe().dispose()
         
         
         
