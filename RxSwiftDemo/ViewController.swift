@@ -15,16 +15,42 @@ class ViewController: UIViewController {
     @IBOutlet weak var button: UIButton!
     let disposeBag = DisposeBag()
     
+    class TestModel {
+        var id: String
+        var flag: Bool = false
+    
+        init(id: String) {
+            self.id = id
+        }
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
+//        let first = PublishSubject<TestModel>()
+//
+//        Observable.zip(first, first.skip(1))
+//            .subscribe(onNext: {
+//                print("\($0.0.id)-\($0.0.flag)")
+//                print("\($0.1.id)-\($0.1.flag)")
+//            }).disposed(by: disposeBag)
+//
+//        let test1 = TestModel(id: "1")
+//        let test2 = TestModel(id: "2")
+//        let test3 = TestModel(id: "3")
+//
+//        first.onNext(test1)
+//        first.onNext(test2)
+//        test2.flag = true
+//        first.onNext(test3)
+//
 //        count(from: 10, to: 5, quickStart: true).subscribe(onNext: {
 //            print($0)
 //        }, onCompleted: {
 //            print("complete")
 //        })
         
-//        retryTest()
+        retryTest()
 //        test2()
 //        test3()
 //        test4()
@@ -38,20 +64,31 @@ class ViewController: UIViewController {
     }
 
     func retryTest() {
-        var retryCount = 0
+        var retryCountForTest = 0
+        let maxRetryCount = 2
         
         let retrySeq = Single<String>.create { single in
-            print("retryCount: \(retryCount)")
-            if retryCount >= 3 {
+            if retryCountForTest == 3 {
                 single(.success("success"))
             } else {
                 single(.error(RxError.unknown))
             }
-            retryCount += 1
+            retryCountForTest += 1
             return Disposables.create()
-        }.retry(5)
+        }
         
         retrySeq
+            .observeOn(MainScheduler.asyncInstance)
+            .retryWhen { (rxError: Observable<Error>) -> Observable<Int> in
+                return rxError.enumerated().flatMap { (index, error) -> Observable<Int> in
+                    print("retry index: \(index)")
+                    guard index < maxRetryCount else { // 超過最大次數就拋出錯誤
+                        return Observable.error(RxError.unknown)
+                    }
+                    return Observable<Int>.timer(.seconds(2), scheduler: MainScheduler.instance) // delay 2 秒
+//                    return Observable.just("").asObservable().map{_ in return () }
+                }
+            }
             .debug()
             .subscribe(
                 onSuccess: { _ in print("success") },

@@ -1226,6 +1226,8 @@ errorObservable
                 return Observable.error(CatchError.tooMany)
 //                throw CatchError.tooMany
             }
+            
+            // 延遲兩秒重試
             return Observable<Int>.timer(.seconds(2), scheduler: MainScheduler.instance)
         }
     }
@@ -1247,6 +1249,8 @@ errorObservable
                 return Observable.error(CatchError.tooMany)
 //                throw CatchError.tooMany
             }
+            
+            // 重試
             return Observable.just("").asObservable().map{_ in return () }
         }
     }
